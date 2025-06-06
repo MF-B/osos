@@ -27,6 +27,7 @@ read_write_csr_field! {
 csr_field_enum! {
     /// field enum type with valid field variants
     MtestFieldEnum {
+        range: [8:11],
         default: Field1,
         Field1 = 1,
         Field2 = 2,
@@ -55,12 +56,12 @@ pub fn _try_read_csr() -> Result<Mtest> {
 
 #[allow(unused)]
 pub fn _write_csr(csr: Mtest) {
-    unsafe { write(csr) };
+    write(csr);
 }
 
 #[allow(unused)]
 pub fn _try_write_csr(csr: Mtest) {
-    unsafe { try_write(csr) };
+    try_write(csr);
 }
 
 #[test]

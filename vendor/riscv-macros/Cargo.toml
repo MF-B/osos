@@ -12,10 +12,9 @@
 [package]
 edition = "2021"
 name = "riscv-macros"
-version = "0.2.0"
+version = "0.1.0"
 authors = ["The RISC-V Team <risc-v@teams.rust-embedded.org>"]
 build = false
-autolib = false
 autobins = false
 autoexamples = false
 autotests = false

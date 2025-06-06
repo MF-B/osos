@@ -1,47 +1,56 @@
 //! mip register
 
-read_write_csr! {
-    /// `mip` register
-    Mip: 0x344,
-    mask: 0xaaa,
+/// mip register
+#[derive(Clone, Copy, Debug)]
+pub struct Mip {
+    bits: usize,
 }
 
-read_write_csr_field! {
-    Mip,
+impl Mip {
+    /// Returns the contents of the register as raw bits
+    #[inline]
+    pub fn bits(&self) -> usize {
+        self.bits
+    }
+
     /// Supervisor Software Interrupt Pending
-    ssoft: 1,
-}
+    #[inline]
+    pub fn ssoft(&self) -> bool {
+        self.bits & (1 << 1) != 0
+    }
 
-read_only_csr_field! {
-    Mip,
     /// Machine Software Interrupt Pending
-    msoft: 3,
-}
+    #[inline]
+    pub fn msoft(&self) -> bool {
+        self.bits & (1 << 3) != 0
+    }
 
-read_write_csr_field! {
-    Mip,
     /// Supervisor Timer Interrupt Pending
-    stimer: 5,
-}
+    #[inline]
+    pub fn stimer(&self) -> bool {
+        self.bits & (1 << 5) != 0
+    }
 
-read_only_csr_field! {
-    Mip,
     /// Machine Timer Interrupt Pending
-    mtimer: 7,
-}
+    #[inline]
+    pub fn mtimer(&self) -> bool {
+        self.bits & (1 << 7) != 0
+    }
 
-read_write_csr_field! {
-    Mip,
     /// Supervisor External Interrupt Pending
-    sext: 9,
-}
+    #[inline]
+    pub fn sext(&self) -> bool {
+        self.bits & (1 << 9) != 0
+    }
 
-read_only_csr_field! {
-    Mip,
     /// Machine External Interrupt Pending
-    mext: 11,
+    #[inline]
+    pub fn mext(&self) -> bool {
+        self.bits & (1 << 11) != 0
+    }
 }
 
+read_csr_as!(Mip, 0x344);
 set!(0x344);
 clear!(0x344);
 
@@ -54,25 +63,3 @@ set_clear_csr!(
 set_clear_csr!(
     /// Supervisor External Interrupt Pending
     , set_sext, clear_sext, 1 << 9);
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_mip() {
-        let mut m = Mip::from_bits(0);
-
-        test_csr_field!(m, ssoft);
-        test_csr_field!(m, stimer);
-        test_csr_field!(m, sext);
-
-        assert!(!m.msoft());
-        assert!(!m.mtimer());
-        assert!(!m.mext());
-
-        assert!(Mip::from_bits(1 << 3).msoft());
-        assert!(Mip::from_bits(1 << 7).mtimer());
-        assert!(Mip::from_bits(1 << 11).mext());
-    }
-}

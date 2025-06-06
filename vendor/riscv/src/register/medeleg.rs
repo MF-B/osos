@@ -1,89 +1,98 @@
 //! medeleg register
 
-read_write_csr! {
-    /// `medeleg` register
-    Medeleg: 0x302,
-    mask: 0xb3ff,
+/// medeleg register
+#[derive(Clone, Copy, Debug)]
+pub struct Medeleg {
+    bits: usize,
 }
 
-read_write_csr_field! {
-    Medeleg,
+impl Medeleg {
+    /// Returns the contents of the register as raw bits
+    #[inline]
+    pub fn bits(&self) -> usize {
+        self.bits
+    }
+
     /// Instruction Address Misaligned Delegate
-    instruction_misaligned: 0,
-}
+    #[inline]
+    pub fn instruction_misaligned(&self) -> bool {
+        self.bits & (1 << 0) != 0
+    }
 
-read_write_csr_field! {
-    Medeleg,
     /// Instruction Access Fault Delegate
-    instruction_fault: 1,
-}
+    #[inline]
+    pub fn instruction_fault(&self) -> bool {
+        self.bits & (1 << 1) != 0
+    }
 
-read_write_csr_field! {
-    Medeleg,
     /// Illegal Instruction Delegate
-    illegal_instruction: 2,
-}
+    #[inline]
+    pub fn illegal_instruction(&self) -> bool {
+        self.bits & (1 << 2) != 0
+    }
 
-read_write_csr_field! {
-    Medeleg,
     /// Breakpoint Delegate
-    breakpoint: 3,
-}
+    #[inline]
+    pub fn breakpoint(&self) -> bool {
+        self.bits & (1 << 3) != 0
+    }
 
-read_write_csr_field! {
-    Medeleg,
     /// Load Address Misaligned Delegate
-    load_misaligned: 4,
-}
+    #[inline]
+    pub fn load_misaligned(&self) -> bool {
+        self.bits & (1 << 4) != 0
+    }
 
-read_write_csr_field! {
-    Medeleg,
     /// Load Access Fault Delegate
-    load_fault: 5,
-}
+    #[inline]
+    pub fn load_fault(&self) -> bool {
+        self.bits & (1 << 5) != 0
+    }
 
-read_write_csr_field! {
-    Medeleg,
     /// Store/AMO Address Misaligned Delegate
-    store_misaligned: 6,
-}
+    #[inline]
+    pub fn store_misaligned(&self) -> bool {
+        self.bits & (1 << 6) != 0
+    }
 
-read_write_csr_field! {
-    Medeleg,
     /// Store/AMO Access Fault Delegate
-    store_fault: 7,
-}
+    #[inline]
+    pub fn store_fault(&self) -> bool {
+        self.bits & (1 << 7) != 0
+    }
 
-read_write_csr_field! {
-    Medeleg,
     /// Environment Call from U-mode Delegate
-    user_env_call: 8,
-}
+    #[inline]
+    pub fn user_env_call(&self) -> bool {
+        self.bits & (1 << 8) != 0
+    }
 
-read_write_csr_field! {
-    Medeleg,
     /// Environment Call from S-mode Delegate
-    supervisor_env_call: 9,
-}
+    #[inline]
+    pub fn supervisor_env_call(&self) -> bool {
+        self.bits & (1 << 9) != 0
+    }
 
-read_write_csr_field! {
-    Medeleg,
     /// Instruction Page Fault Delegate
-    instruction_page_fault: 12,
-}
+    #[inline]
+    pub fn instruction_page_fault(&self) -> bool {
+        self.bits & (1 << 12) != 0
+    }
 
-read_write_csr_field! {
-    Medeleg,
     /// Load Page Fault Delegate
-    load_page_fault: 13,
-}
+    #[inline]
+    pub fn load_page_fault(&self) -> bool {
+        self.bits & (1 << 13) != 0
+    }
 
-read_write_csr_field! {
-    Medeleg,
     /// Store/AMO Page Fault Delegate
-    store_page_fault: 15,
+    #[inline]
+    pub fn store_page_fault(&self) -> bool {
+        self.bits & (1 << 15) != 0
+    }
 }
 
+read_csr_as!(Medeleg, 0x302);
 set!(0x302);
 clear!(0x302);
 
@@ -126,27 +135,3 @@ set_clear_csr!(
 set_clear_csr!(
     /// Store/AMO Page Fault Delegate
     , set_store_page_fault, clear_store_page_fault, 1 << 15);
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_medeleg() {
-        let mut m = Medeleg::from_bits(0);
-
-        test_csr_field!(m, instruction_misaligned);
-        test_csr_field!(m, instruction_fault);
-        test_csr_field!(m, illegal_instruction);
-        test_csr_field!(m, breakpoint);
-        test_csr_field!(m, load_misaligned);
-        test_csr_field!(m, load_fault);
-        test_csr_field!(m, store_misaligned);
-        test_csr_field!(m, store_fault);
-        test_csr_field!(m, user_env_call);
-        test_csr_field!(m, supervisor_env_call);
-        test_csr_field!(m, instruction_page_fault);
-        test_csr_field!(m, load_page_fault);
-        test_csr_field!(m, store_page_fault);
-    }
-}

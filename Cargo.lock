@@ -312,7 +312,7 @@ dependencies = [
  "page_table_multiarch",
  "percpu",
  "raw-cpuid 11.5.0",
- "riscv 0.13.0",
+ "riscv",
  "sbi-rt",
  "static_assertions",
  "tock-registers 0.9.0",
@@ -944,9 +944,9 @@ dependencies = [
 
 [[package]]
 name = "ns16550a"
-version = "0.5.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3cd8abe9e54bce27659507b94f355c9334378ab15da332b6986b3583ebf7228"
+checksum = "667fbdfccff4775918606516ff6ca51b898ac0842c4bc41c960a55a9832545a6"
 
 [[package]]
 name = "num-traits"
@@ -1008,7 +1008,7 @@ dependencies = [
  "log",
  "memory_addr",
  "page_table_entry",
- "riscv 0.12.1",
+ "riscv",
  "x86",
 ]
 
@@ -1108,27 +1108,15 @@ dependencies = [
  "critical-section",
  "embedded-hal",
  "paste",
- "riscv-pac",
-]
-
-[[package]]
-name = "riscv"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afa3cdbeccae4359f6839a00e8b77e5736caa200ba216caf38d24e4c16e2b586"
-dependencies = [
- "critical-section",
- "embedded-hal",
- "paste",
  "riscv-macros",
  "riscv-pac",
 ]
 
 [[package]]
 name = "riscv-macros"
-version = "0.2.0"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8c4aa1ea1af6dcc83a61be12e8189f9b293c3ba5a487778a4cd89fb060fdbbc"
+checksum = "f265be5d634272320a7de94cea15c22a3bfdd4eb42eb43edc528415f066a1f25"
 dependencies = [
  "proc-macro2",
  "quote",

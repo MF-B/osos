@@ -1,24 +1,30 @@
 //! Assembly instructions
 
 macro_rules! instruction {
-    ($(#[$attr:meta])*, unsafe $fnname:ident, $asm:expr, $($options:tt)*) => (
+    ($(#[$attr:meta])*, unsafe $fnname:ident, $asm:expr) => (
         $(#[$attr])*
-        #[inline(always)]
+        #[inline]
         pub unsafe fn $fnname() {
-            #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
-            core::arch::asm!($asm, $($options)*);
-            #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
-            unimplemented!();
+            match () {
+                #[cfg(riscv)]
+                () => core::arch::asm!($asm),
+
+                #[cfg(not(riscv))]
+                () => unimplemented!(),
+            }
         }
     );
-    ($(#[$attr:meta])*, $fnname:ident, $asm:expr, $($options:tt)*) => (
+    ($(#[$attr:meta])*, $fnname:ident, $asm:expr) => (
         $(#[$attr])*
-        #[inline(always)]
+        #[inline]
         pub fn $fnname() {
-            #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
-            unsafe { core::arch::asm!($asm, $($options)*) };
-            #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
-            unimplemented!();
+            match () {
+                #[cfg(riscv)]
+                () => unsafe { core::arch::asm!($asm) },
+
+                #[cfg(not(riscv))]
+                () => unimplemented!(),
+            }
         }
     );
 }
@@ -31,35 +37,18 @@ instruction!(
     ///
     /// This function generates a no-operation; it's useful to prevent delay loops from being
     /// optimized away.
-    , nop, "nop", options(nomem, nostack));
-
+    , nop, "nop");
+instruction!(
+    /// `EBREAK` instruction wrapper
+    ///
+    /// Generates a breakpoint exception.
+    , unsafe ebreak, "ebreak");
 instruction!(
     /// `WFI` instruction wrapper
     ///
     /// Provides a hint to the implementation that the current hart can be stalled until an interrupt might need servicing.
     /// The WFI instruction is just a hint, and a legal implementation is to implement WFI as a NOP.
-    , wfi, "wfi", options(nomem, nostack));
-
-instruction!(
-    /// `EBREAK` instruction wrapper
-    ///
-    /// Generates a breakpoint exception.
-    , unsafe ebreak, "ebreak", options(nomem, nostack));
-
-instruction!(
-    /// `ECALL` instruction wrapper
-    ///
-    /// Generates an exception for a service request to the execution environment.
-    /// When executed in U-mode, S-mode, or M-mode, it generates an environment-call-from-U-mode
-    /// exception, environment-call-from-S-mode exception, or environment-call-from-M-mode exception,
-    /// respectively, and performs no other operation.
-    ///
-    /// # Note
-    ///
-    /// The ECALL instruction will **NOT** save and restore the stack pointer, as it triggers an exception.
-    /// The stack pointer must be saved and restored accordingly by the exception handler.
-    , unsafe ecall, "ecall", options(nomem, nostack));
-
+    , wfi, "wfi");
 instruction!(
     /// `SFENCE.VMA` instruction wrapper (all address spaces and page table levels)
     ///
@@ -68,8 +57,7 @@ instruction!(
     /// are ordinarily not ordered with respect to loads and stores in the instruction stream.
     /// Executing an `SFENCE.VMA` instruction guarantees that any stores in the instruction stream prior to the
     /// `SFENCE.VMA` are ordered before all implicit references subsequent to the `SFENCE.VMA`.
-    , sfence_vma_all, "sfence.vma", options(nostack));
-
+    , sfence_vma_all, "sfence.vma");
 instruction!(
     /// `FENCE` instruction wrapper
     ///
@@ -78,12 +66,12 @@ instruction!(
     /// (O), memory reads (R), and memory writes (W) may be ordered with respect to any combination
     /// of the same. Informally, no other RISC-V hart or external device can observe any operation in the
     /// successor set following a FENCE before any operation in the predecessor set preceding the FENCE.
+    /// Chapter 17 provides a precise description of the RISC-V memory consistency model.
     ///
     /// The FENCE instruction also orders memory reads and writes made by the hart as observed by
     /// memory reads and writes made by an external device. However, FENCE does not order observations
     /// of events made by an external device using any other signaling mechanism.
-    , fence, "fence", options(nostack));
-
+    , fence, "fence");
 instruction!(
     /// `FENCE.I` instruction wrapper
     ///
@@ -101,7 +89,7 @@ instruction!(
     /// The unused fields in the FENCE.I instruction, imm\[11:0\], rs1, and rd, are reserved for
     /// finer-grain fences in future extensions. For forward compatibility, base
     /// implementations shall ignore these fields, and standard software shall zero these fields.
-    , fence_i, "fence.i", options(nostack));
+    , fence_i, "fence.i");
 
 /// `SFENCE.VMA` instruction wrapper
 ///
@@ -110,18 +98,38 @@ instruction!(
 /// are ordinarily not ordered with respect to loads and stores in the instruction stream.
 /// Executing an `SFENCE.VMA` instruction guarantees that any stores in the instruction stream prior to the
 /// `SFENCE.VMA` are ordered before all implicit references subsequent to the `SFENCE.VMA`.
-#[inline(always)]
-#[cfg_attr(
-    not(any(target_arch = "riscv32", target_arch = "riscv64")),
-    allow(unused_variables)
-)]
-pub fn sfence_vma(asid: usize, addr: usize) {
-    #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
-    unsafe {
-        core::arch::asm!("sfence.vma {0}, {1}", in(reg) addr, in(reg) asid, options(nostack));
-    };
-    #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
-    unimplemented!();
+#[inline]
+#[allow(unused_variables)]
+pub unsafe fn sfence_vma(asid: usize, addr: usize) {
+    match () {
+        #[cfg(riscv)]
+        () => core::arch::asm!("sfence.vma {0}, {1}", in(reg) addr, in(reg) asid),
+
+        #[cfg(not(riscv))]
+        () => unimplemented!(),
+    }
+}
+
+/// `ECALL` instruction wrapper
+///
+/// Generates an exception for a service request to the execution environment.
+/// When executed in U-mode, S-mode, or M-mode, it generates an environment-call-from-U-mode
+/// exception, environment-call-from-S-mode exception, or environment-call-from-M-mode exception,
+/// respectively, and performs no other operation.
+///
+/// # Note
+///
+/// The ECALL instruction will **NOT** save and restore the stack pointer, as it triggers an exception.
+/// The stack pointer must be saved and restored accordingly by the exception handler.
+#[inline]
+pub unsafe fn ecall() {
+    match () {
+        #[cfg(riscv)]
+        () => core::arch::asm!("ecall", options(nostack)),
+
+        #[cfg(not(riscv))]
+        () => unimplemented!(),
+    }
 }
 
 /// Blocks the program for *at least* `cycles` CPU cycles.
@@ -134,26 +142,22 @@ pub fn sfence_vma(asid: usize, addr: usize) {
 /// timer-less initialization of peripherals if and only if accurate timing is not essential. In
 /// any other case please use a more accurate method to produce a delay.
 #[inline]
-#[cfg_attr(
-    not(any(target_arch = "riscv32", target_arch = "riscv64")),
-    allow(unused_variables)
-)]
+#[allow(unused_variables)]
 pub fn delay(cycles: u32) {
     match () {
-        #[cfg(any(target_arch = "riscv32", target_arch = "riscv64"))]
-        () => {
+        #[cfg(riscv)]
+        () => unsafe {
             let real_cyc = 1 + cycles / 2;
-            unsafe {
-                core::arch::asm!(
-                "2:",
-                "addi {0}, {0}, -1",
-                "bne {0}, zero, 2b",
-                inout(reg) real_cyc => _,
-                options(nomem, nostack),
-                );
-            }
-        }
-        #[cfg(not(any(target_arch = "riscv32", target_arch = "riscv64")))]
+            core::arch::asm!(
+            "2:",
+            "addi {0}, {0}, -1",
+            "bne {0}, zero, 2b",
+            inout(reg) real_cyc => _,
+            options(nomem, nostack),
+            )
+        },
+
+        #[cfg(not(riscv))]
         () => unimplemented!(),
     }
 }

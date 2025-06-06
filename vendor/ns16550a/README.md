@@ -1,8 +1,8 @@
 # NS16550A
 
-[![crates.io](https://img.shields.io/crates/v/ns16550a)](https://crates.io/crates/ns16550a)
-[![doc](https://docs.rs/ns16550a/badge.svg)](https://docs.rs/ns16550a)
-[![github](https://img.shields.io/github/license/jeudine/NS16550A)](https://github.com/jeudine/NS16550A/blob/main/LICENSE)
+![Crates.io](https://img.shields.io/crates/v/ns16550a)
+![docs.rs](https://img.shields.io/docsrs/ns16550a)
+![GitHub](https://img.shields.io/github/license/jeudine/NS16550A)
 
 NS16550A UART driver written in Rust.
 
@@ -11,7 +11,7 @@ NS16550A UART driver written in Rust.
 Add the following to Cargo.toml:
 
 ``` toml
-ns16550a = "0.5"
+ns16550a = "0.4"
 ```
 
 ## Example

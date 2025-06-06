@@ -12,14 +12,8 @@
 [package]
 edition = "2018"
 name = "ns16550a"
-version = "0.5.0"
+version = "0.4.0"
 authors = ["Julien Eudine <julien@eudine.fr>"]
-build = false
-autolib = false
-autobins = false
-autoexamples = false
-autotests = false
-autobenches = false
 description = "NS16550A UART driver."
 documentation = "https://docs.rs/ns16550a"
 readme = "README.md"
@@ -31,12 +25,6 @@ categories = [
 license = "MIT"
 repository = "https://github.com/jeudine/NS16550A"
 
-[lib]
-name = "ns16550a"
-path = "src/lib.rs"
-
-[dependencies]
-
 [profile.dev]
 opt-level = 3
 panic = "abort"
@@ -44,3 +32,5 @@ panic = "abort"
 [profile.release]
 opt-level = 3
 panic = "abort"
+
+[dependencies]

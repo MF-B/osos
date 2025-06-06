@@ -1,47 +1,56 @@
 //! mie register
 
-read_write_csr! {
-    /// `mie` register
-    Mie: 0x304,
-    mask: 0xaaa,
+/// mie register
+#[derive(Clone, Copy, Debug)]
+pub struct Mie {
+    bits: usize,
 }
 
-read_write_csr_field! {
-    Mie,
+impl Mie {
+    /// Returns the contents of the register as raw bits
+    #[inline]
+    pub fn bits(&self) -> usize {
+        self.bits
+    }
+
     /// Supervisor Software Interrupt Enable
-    ssoft: 1,
-}
+    #[inline]
+    pub fn ssoft(&self) -> bool {
+        self.bits & (1 << 1) != 0
+    }
 
-read_write_csr_field! {
-    Mie,
     /// Machine Software Interrupt Enable
-    msoft: 3,
-}
+    #[inline]
+    pub fn msoft(&self) -> bool {
+        self.bits & (1 << 3) != 0
+    }
 
-read_write_csr_field! {
-    Mie,
     /// Supervisor Timer Interrupt Enable
-    stimer: 5,
-}
+    #[inline]
+    pub fn stimer(&self) -> bool {
+        self.bits & (1 << 5) != 0
+    }
 
-read_write_csr_field! {
-    Mie,
     /// Machine Timer Interrupt Enable
-    mtimer: 7,
-}
+    #[inline]
+    pub fn mtimer(&self) -> bool {
+        self.bits & (1 << 7) != 0
+    }
 
-read_write_csr_field! {
-    Mie,
     /// Supervisor External Interrupt Enable
-    sext: 9,
-}
+    #[inline]
+    pub fn sext(&self) -> bool {
+        self.bits & (1 << 9) != 0
+    }
 
-read_write_csr_field! {
-    Mie,
     /// Machine External Interrupt Enable
-    mext: 11,
+    #[inline]
+    pub fn mext(&self) -> bool {
+        self.bits & (1 << 11) != 0
+    }
 }
 
+read_csr_as!(Mie, 0x304);
 set!(0x304);
 clear!(0x304);
 
@@ -63,20 +72,3 @@ set_clear_csr!(
 set_clear_csr!(
     /// Machine External Interrupt Enable
     , set_mext, clear_mext, 1 << 11);
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_mie() {
-        let mut m = Mie::from_bits(0);
-
-        test_csr_field!(m, ssoft);
-        test_csr_field!(m, msoft);
-        test_csr_field!(m, stimer);
-        test_csr_field!(m, mtimer);
-        test_csr_field!(m, sext);
-        test_csr_field!(m, mext);
-    }
-}

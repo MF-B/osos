@@ -41,7 +41,8 @@ set_clear_csr!(
 
 #[inline]
 pub unsafe fn set_hpm(index: usize) {
-    try_set_hpm(index).unwrap();
+    assert!((3..32).contains(&index));
+    _set(1 << index);
 }
 
 #[inline]
@@ -59,7 +60,8 @@ pub unsafe fn try_set_hpm(index: usize) -> Result<()> {
 
 #[inline]
 pub unsafe fn clear_hpm(index: usize) {
-    try_clear_hpm(index).unwrap();
+    assert!((3..32).contains(&index));
+    _clear(1 << index);
 }
 
 #[inline]
