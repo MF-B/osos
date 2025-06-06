@@ -1,4 +1,4 @@
-AX_ROOT ?= $(PWD)/.arceos
+AX_ROOT ?= $(PWD)/arceos
 AX_TESTCASE ?= nimbos
 ARCH ?= x86_64
 LOG ?= off
