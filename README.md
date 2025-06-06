@@ -1,232 +1,92 @@
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/oscomp/starry-next)
-# StarryOS
+# OSKernel2025-freeOS
 
-[![CI](https://github.com/arceos-org/starry-next/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/arceos-org/starry-next/actions/workflows/ci.yml)
 
-A monolithic kernel based on [ArceOS](https://github.com/arceos-org/arceos).
 
-## Quick Start
+## Getting started
 
-### Build and Run through Docker
-Install [Docker](https://www.docker.com/) in your system.
+To make it easy for you to get started with GitLab, here's a list of recommended next steps.
 
-Then build all dependencies through provided dockerfile:
+Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
 
-```bash
-./scripts/get_deps.sh
-cd .arceos
-docker build -t starry -f Dockerfile .
+## Add your files
+
+- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
+- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+
+```
+cd existing_repo
+git remote add origin https://gitlab.eduxiji.net/T202510216995249/oskernel2025-freeos.git
+git branch -M main
+git push -uf origin main
 ```
 
-Create a container and build/run app:
-```bash
-# back to the root directory of the project
-cd ..
-docker run --privileged --rm -it -v $(pwd):/starry -w /starry starry bash
-
-
-# Now build/run app in the container
-make user_apps
-make defconfig
-make run
-```
+## Integrate with your tools
 
-### Manually Build and Run
+- [ ] [Set up project integrations](https://gitlab.eduxiji.net/T202510216995249/oskernel2025-freeos/-/settings/integrations)
 
-#### 1. Install Build Dependencies
+## Collaborate with your team
 
-```bash
-cargo install cargo-binutils axconfig-gen
+- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
+- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
+- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
+- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
+- [ ] [Automatically merge when pipeline succeeds](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
 
-sudo apt install libclang-dev cmake dosfstools build-essential
-```
+## Test and Deploy
 
-Download & install [musl](https://musl.cc) toolchains:
+Use the built-in continuous integration in GitLab.
 
-```bash
-# download
-wget https://musl.cc/aarch64-linux-musl-cross.tgz
-wget https://musl.cc/riscv64-linux-musl-cross.tgz
-wget https://musl.cc/x86_64-linux-musl-cross.tgz
-wget https://github.com/LoongsonLab/oscomp-toolchains-for-oskernel/releases/download/loongarch64-linux-musl-cross-gcc-13.2.0/loongarch64-linux-musl-cross.tgz
-# install
-tar zxf aarch64-linux-musl-cross.tgz
-tar zxf riscv64-linux-musl-cross.tgz
-tar zxf x86_64-linux-musl-cross.tgz
-tar zxf loongarch64-linux-musl-cross.tgz
+- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
+- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
+- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
+- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
+- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
 
-# exec below command in bash OR add below info in ~/.bashrc
-export PATH=`pwd`/x86_64-linux-musl-cross/bin:`pwd`/aarch64-linux-musl-cross/bin:`pwd`/riscv64-linux-musl-cross/bin:`pwd`/loongarch64-linux-musl-cross/bin:$PATH
-```
+***
 
-#### 2. Dependencies for running apps
+# Editing this README
 
-```bash
-# for Debian/Ubuntu
-sudo apt-get install qemu-system
-```
+When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
 
-```bash
-# for macos
-brew install qemu
-```
+## Suggestions for a good README
+Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
 
-Notice: The version of `qemu` should **be no less than 8.2.0**.
+## Name
+Choose a self-explaining name for your project.
 
-Other systems, arch and version please refer to [Qemu Download](https://www.qemu.org/download/#linux)
+## Description
+Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
 
-#### 3. Build & Run
+## Badges
+On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
 
-```bash
-# Clone the base repository
-./scripts/get_deps.sh
+## Visuals
+Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
 
-# Run riscv64 example
-make ARCH=riscv64 AX_TESTCASE=nimbos user_apps
-# When running on a new architecture, you need to generate the configuration file again.
-make ARCH=riscv64 defconfig
-make ARCH=riscv64 AX_TESTCASE=nimbos BLK=y NET=y ACCEL=n run
+## Installation
+Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
 
-# Run x86_64 example
-make ARCH=x86_64 AX_TESTCASE=nimbos user_apps
-# When running on a new architecture, you need to generate the configuration file again.
-make ARCH=x86_64 defconfig
-make ARCH=x86_64 AX_TESTCASE=nimbos BLK=y NET=y ACCEL=n run
+## Usage
+Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
 
-# Run aarch64 example
-make ARCH=aarch64 AX_TESTCASE=nimbos user_apps
-make ARCH=aarch64 defconfig
-make ARCH=aarch64 AX_TESTCASE=nimbos BLK=y NET=y FEATURES=fp_simd ACCEL=n run
+## Support
+Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
 
-# Run Loongarch64 example
-make ARCH=loongarch64 AX_TESTCASE=nimbos user_apps
-make ARCH=loongarch64 defconfig
-make ARCH=loongarch64 AX_TESTCASE=nimbos BLK=y NET=y ACCEL=n run
+## Roadmap
+If you have ideas for releases in the future, it is a good idea to list them in the README.
 
-# Run another example (libc testcases)
-make ARCH=riscv64 AX_TESTCASE=libc user_apps
-make ARCH=riscv64 defconfig
-# When running libc testcases, you need to enable `fp_simd` feature.
-make ARCH=riscv64 AX_TESTCASE=libc BLK=y NET=y FEATURES=fp_simd ACCEL=n run
-```
+## Contributing
+State if you are open to contributions and what your requirements are for accepting them.
 
-#### 4. Commands Explanation
+For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
 
-```bash
-# Clone the base repository
-./scripts/get_deps.sh
+You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
 
-# Build user applications
-make ARCH=<arch> AX_TESTCASE=<testcases> user_apps
+## Authors and acknowledgment
+Show your appreciation to those who have contributed to the project.
 
-# Build kernel
-make ARCH=<arch> LOG=<log> AX_TESTCASE=<testcases> build
+## License
+For open source projects, say how it is licensed.
 
-# Run kernel
-make ARCH=<arch> LOG=<log> AX_TESTCASE=<testcases> run
-```
-
-Where `testcases` are shown under the `apps/` folder.
-
-`<arch>` should be one of `riscv64`, `aarch64`, `x86_64`, `loongarch64`.
-
-`<log>` should be one of `off`, `error`, `warn`, `info`, `debug`, `trace`.
-
-More arguments and targets can be found in [Makefile](./Makefile).
-
-For example, to run the [nimbos testcases](apps/nimbos/) on `qemu-system-x86_64` with log level `info`:
-
-```bash
-make ARCH=x86_64 LOG=info AX_TESTCASE=nimbos run
-```
-
-Note: Arguments like `NET`, `BLK`, and `GRAPHIC` enable devices in QEMU, which take effect only at runtime, not at build time. More features can be found in the [Cargo.toml of arceos](https://github.com/oscomp/arceos/blob/main/ulib/axstd/Cargo.toml).
-
-#### Development with Visual Studio Code
-
-Since ArceOS relies on special build scripts and some environment variables, this usually causes `rust-analyzer` to prompt some annoying errors. You may want to put the following configuration into `.vscode/settings.json` (ie workspace settings):
-```json
-{
-  "rust-analyzer.cargo.extraEnv": {
-    "AX_CONFIG_PATH": "${workspaceFolder}/.axconfig.toml"
-  }
-}
-```
-
-## Test for oscomp testcases
-
-We can run [testcases of the OS competition](https://github.com/oscomp/testsuits-for-oskernel/tree/pre-2025) with StarryOS. Guidence can be found in [Starry-Tutorial](https://azure-stars.github.io/Starry-Tutorial-Book/ch03-02.html). 
-
-
-And you can run the testcases with the following commands:
-
-```bash
-# Clone the base repository
-./scripts/get_deps.sh
-
-# run the testcases of oscomp on x86_64
-$ make oscomp_run ARCH=x86_64   # If it reports an error: -accel kvm: failed to initialize kvm: Permission denied, please add `ACCEL=n` argument.
-
-# run the testcases of oscomp on riscv64
-$ make oscomp_run ARCH=riscv64
-
-# run the testcases of oscomp on aarch64
-$ make oscomp_run ARCH=aarch64
-
-# run the testcases of oscomp on loongarch64
-$ make oscomp_run ARCH=loongarch64
-```
-
-To run more testcases from oscomp, you can refer to the [oscomp README](./apps/oscomp/README.md).
-
-## How to add new testcases
-
-To allow the kernel to run user-written test cases, temporary test cases can be created. 
-
-
-If you want to add source codes of the testcases, you can refer to the [libc testcases](./apps/libc) and add your source codes in the [c testcase](./apps/libc/c/) folder, and append the [testcase_list](./apps/libc/testcase_list) with your testcase name. Then you can run the testcases with the following commands:
-
-```sh
-make AX_TESTCASE=libc user_apps ARCH=$(YOUR_ARCH)
-make AX_TESTCASE=libc BLK=y NET=y FEATURES=fp_simd ACCEL=n run ARCH=$(YOUR_ARCH)
-```
-
-If you want to add **executable file** directly, the specific steps are as follows:
-
-   1. Create a temporary test case folder
-
-      ```sh
-      cd apps && mkdir custom && cd custom
-      ```
-
-   2. Create a `Makefile` in the current directory and fill in the following content:
-
-      ```makefile
-      all: build
-
-      build:
-
-      clean:
-          rm -rf *.out
-      ```
-
-      The reason for creating an empty build `Makefile` is that when Starry packages test case images, it will first execute the test case's build program by default. However, since our temporary test case does not currently have a defined build program, `make all` does not need to perform any operations.
-
-   3. Copy your **executable file** into the current directory.
-
-   4. Create a `testcase_list` file in the current directory and add the relative path of the executable file that needs to be executed. Note that this path should be relative to `apps/custom` (i.e., the current directory). In our example, the content should be:
-
-      ```sh
-      hello
-      ```
-
-   5. Return to the project root directory and run the following command:
-
-      ```sh
-      sudo ./build_img.sh -fs ext4 -file apps/custom
-      cp disk.img .arceos/disk.img
-      make defconfig
-      make AX_TESTCASE=custom ARCH=x86_64 BLK=y NET=y FEATURES=fp_simd,lwext4_rs LOG=off ACCEL=n run
-      ```
-
-      This completes the execution of the custom test case.
+## Project status
+If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
