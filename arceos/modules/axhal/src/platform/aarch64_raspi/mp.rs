@@ -6,7 +6,7 @@ unsafe extern "C" {
     fn _start_secondary();
 }
 
-#[unsafe(naked)]
+#[naked]
 #[unsafe(link_section = ".text.boot")]
 unsafe extern "C" fn modify_stack_and_start() {
     core::arch::naked_asm!("

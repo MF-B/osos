@@ -73,20 +73,19 @@ pub unsafe fn write_page_table_root(root_paddr: PhysAddr) {
 /// entry that maps the given virtual address.
 #[inline]
 pub fn flush_tlb(vaddr: Option<VirtAddr>) {
-    if let Some(vaddr) = vaddr {
-        asm::sfence_vma(0, vaddr.as_usize())
-    } else {
-        asm::sfence_vma_all();
+    unsafe {
+        if let Some(vaddr) = vaddr {
+            asm::sfence_vma(0, vaddr.as_usize())
+        } else {
+            asm::sfence_vma_all();
+        }
     }
 }
 
 /// Writes Supervisor Trap Vector Base Address Register (`stvec`).
 #[inline]
 pub fn set_trap_vector_base(stvec: usize) {
-    let mut reg = stvec::read();
-    reg.set_address(stvec);
-    reg.set_trap_mode(stvec::TrapMode::Direct);
-    unsafe { stvec::write(reg) }
+    unsafe { stvec::write(stvec, stvec::TrapMode::Direct) }
 }
 
 /// Reads the thread pointer of the current CPU.

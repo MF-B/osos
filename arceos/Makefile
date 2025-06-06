@@ -100,11 +100,7 @@ else ifeq ($(ARCH), aarch64)
 else ifeq ($(ARCH), riscv64)
   TARGET := riscv64gc-unknown-none-elf
 else ifeq ($(ARCH), loongarch64)
-  ifeq ($(findstring fp_simd,$(FEATURES)),)
-    TARGET := loongarch64-unknown-none-softfloat
-  else
-    TARGET := loongarch64-unknown-none
-  endif
+  TARGET := loongarch64-unknown-none
 else
   $(error "ARCH" must be one of "x86_64", "riscv64", "aarch64" or "loongarch64")
 endif

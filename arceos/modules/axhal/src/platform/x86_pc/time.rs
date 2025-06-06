@@ -57,10 +57,11 @@ pub(super) fn init_early() {
     if let Some(freq) = CpuId::new()
         .get_processor_frequency_info()
         .map(|info| info.processor_base_frequency())
-        && freq > 0
     {
-        axlog::ax_println!("Got TSC frequency by CPUID: {} MHz", freq);
-        unsafe { CPU_FREQ_MHZ = freq as u64 }
+        if freq > 0 {
+            axlog::ax_println!("Got TSC frequency by CPUID: {} MHz", freq);
+            unsafe { CPU_FREQ_MHZ = freq as u64 }
+        }
     }
 
     unsafe {
