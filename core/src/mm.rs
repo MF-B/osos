@@ -1,11 +1,15 @@
 //! User address space management.
 
-use core::ffi::CStr;
-
-use alloc::{borrow::ToOwned, string::String, vec, vec::Vec};
+use alloc::vec;
+use alloc::{
+    borrow::ToOwned,
+    string::{String, ToString},
+    vec::Vec,
+};
 use axerrno::{AxError, AxResult};
 use axhal::{mem::virt_to_phys, paging::MappingFlags};
 use axmm::{AddrSpace, kernel_aspace};
+use core::ffi::CStr;
 use kernel_elf_parser::{AuxvEntry, ELFParser, app_stack_region};
 use memory_addr::{MemoryAddr, PAGE_SIZE_4K, VirtAddr};
 use xmas_elf::{ElfFile, program::SegmentData};
@@ -116,11 +120,24 @@ pub fn load_user_app(
         let pos = head.iter().position(|c| *c == b'\n').unwrap_or(head.len());
         let line = core::str::from_utf8(&head[..pos]).map_err(|_| AxError::InvalidData)?;
 
-        let new_args: Vec<String> = line
+        let mut new_args: Vec<String> = line
             .splitn(2, |c: char| c.is_ascii_whitespace())
             .map(|s| s.trim_ascii().to_owned())
             .chain(args.iter().cloned())
             .collect();
+
+        // 添加解释器路径映射
+        if let Some(interpreter) = new_args.first_mut() {
+            match interpreter.as_str() {
+                "/bin/sh" | "/bin/bash" => {
+                    *interpreter = "/musl/busybox".to_string();
+                    new_args.insert(1, "sh".to_string());
+                }
+                _ => {}
+            }
+        }
+
+        new_args.extend_from_slice(args);
         return load_user_app(uspace, &new_args, envs);
     }
     let elf = ElfFile::new(&file_data).map_err(|_| AxError::InvalidData)?;
@@ -142,6 +159,7 @@ pub fn load_user_app(
         )?;
 
         if interp_path == "/lib/ld-linux-riscv64-lp64.so.1"
+            || interp_path == "/lib/ld-musl-riscv64.so.1"
             || interp_path == "/lib64/ld-linux-loongarch-lp64d.so.1"
             || interp_path == "/lib64/ld-linux-x86-64.so.2"
             || interp_path == "/lib/ld-linux-aarch64.so.1"
