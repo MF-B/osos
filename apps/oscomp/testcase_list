@@ -4,9 +4,9 @@
 # /musl/busybox sh /musl/basic_testcode.sh
 
 # glibc busybox测例
-# /glibc/busybox sh /glibc/busybox_testcode.sh
+/glibc/busybox sh /glibc/busybox_testcode.sh
 # musl busybox测例
-# /musl/busybox sh /musl/busybox_testcode.sh
+/musl/busybox sh /musl/busybox_testcode.sh
 
 # TODO
 # glibc cyclictest测例
@@ -34,16 +34,16 @@
 
 # TODO
 # glibc libctest测例
-/musl/busybox echo "#### OS COMP TEST GROUP START libctest-glibc ####"  
-/musl/busybox sh /glibc/run-static.sh  
-/musl/busybox sh /glibc/run-dynamic.sh
-/musl/busybox echo "#### OS COMP TEST GROUP END libctest-glibc ####"
+# /musl/busybox echo "#### OS COMP TEST GROUP START libctest-glibc ####"  
+# /musl/busybox sh /glibc/run-static.sh  
+# /musl/busybox sh /glibc/run-dynamic.sh
+# /musl/busybox echo "#### OS COMP TEST GROUP END libctest-glibc ####"
 
 # musl libctest测例
-/musl/busybox echo "#### OS COMP TEST GROUP START libctest-musl ####"
-/musl/busybox sh /musl/run-static.sh
-/musl/busybox sh /musl/run-dynamic.sh
-/musl/busybox echo "#### OS COMP TEST GROUP END libctest-musl ####"
+# /musl/busybox echo "#### OS COMP TEST GROUP START libctest-musl ####"
+# /musl/busybox sh /musl/run-static.sh
+# /musl/busybox sh /musl/run-dynamic.sh
+# /musl/busybox echo "#### OS COMP TEST GROUP END libctest-musl ####"
 
 
 # TODO
