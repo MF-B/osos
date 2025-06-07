@@ -1,5 +1,9 @@
 # glibc basic测例
-/glibc/busybox echo "#### TEST ####"
-/glibc/busybox sh /glibc/basic_testcode.sh
+# /glibc/busybox sh /glibc/basic_testcode.sh
 # musl basic测例
-/musl/busybox sh /musl/basic_testcode.sh
+# /musl/busybox sh /musl/basic_testcode.sh
+
+# glibc busybox测例
+/glibc/busybox sh /glibc/busybox_testcode.sh
+# musl busybox测例
+/musl/busybox sh /musl/busybox_testcode.sh
