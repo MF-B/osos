@@ -13,3 +13,5 @@ apps/*/build/
 *.img
 /mnt
 /qemu-9.2.1
+kernel-la
+kernel-rv
