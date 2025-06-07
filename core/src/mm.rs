@@ -159,7 +159,13 @@ pub fn load_user_app(
         )?;
 
         if interp_path == "/lib/ld-linux-riscv64-lp64.so.1"
+            || interp_path == "/lib/ld-linux-riscv64-lp64d.so.1"
+            || interp_path == "/lib/ld-musl-riscv64-sf.so.1"
             || interp_path == "/lib/ld-musl-riscv64.so.1"
+            || interp_path == "/lib/ld-musl-x86_64.so.1"
+            || interp_path == "/lib/ld-musl-loongarch-lp64d.so.1"
+            || interp_path == "/lib/ld-musl-aarch64.so.1"
+
             || interp_path == "/lib64/ld-linux-loongarch-lp64d.so.1"
             || interp_path == "/lib64/ld-linux-x86-64.so.2"
             || interp_path == "/lib/ld-linux-aarch64.so.1"

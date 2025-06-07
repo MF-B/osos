@@ -12,3 +12,4 @@ apps/*/build/
 /.axconfig.*
 *.img
 /mnt
+/qemu-9.2.1
