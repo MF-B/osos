@@ -12,6 +12,8 @@ apps/*/build/
 /.axconfig.*
 *.img
 /mnt
+/sdcard
 /qemu-9.2.1
 kernel-la
 kernel-rv
+sdcard*
