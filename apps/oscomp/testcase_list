@@ -4,6 +4,86 @@
 # /musl/busybox sh /musl/basic_testcode.sh
 
 # glibc busybox测例
-/glibc/busybox sh /glibc/busybox_testcode.sh
+# /glibc/busybox sh /glibc/busybox_testcode.sh
 # musl busybox测例
-/musl/busybox sh /musl/busybox_testcode.sh
+# /musl/busybox sh /musl/busybox_testcode.sh
+
+# TODO
+# glibc cyclictest测例
+# /glibc/cyclictest sh /glibc/cyclictest_testcode.sh
+# musl cyclictest测例
+# /musl/cyclictest sh /musl/cyclictest_testcode.sh
+
+# TODO
+# glibc iozone测例
+# /glibc/busybox sh /glibc/iozone_testcode.sh
+# musl iozone测例
+# /musl/busybox sh /musl/iozone_testcode.sh
+
+# TODO
+# glibc iperf测例
+# /glibc/busybox sh /glibc/iperf_testcode.sh
+# musl iperf测例
+# /musl/busybox sh /musl/iperf_testcode.sh
+
+# TODO
+# glibc libcbench测例
+# /glibc/busybox sh /glibc/libcbench_testcode.sh
+# musl libcbench测例
+# /musl/busybox sh /musl/libcbench_testcode.sh
+
+# TODO
+# glibc libctest测例
+# 复制动态库
+/glibc/busybox mkdir -p /lib
+/glibc/busybox cp /glibc/lib/dlopen_dso.so /lib/
+/glibc/busybox cp /glibc/lib/ld-linux-riscv64-lp64d.so.1 /lib/
+/glibc/busybox cp /glibc/lib/libc.so /lib/
+/glibc/busybox cp /glibc/lib/libm.so /lib/
+/glibc/busybox cp /glibc/lib/tls_align_dso.so /lib/
+/glibc/busybox cp /glibc/lib/tls_get_new-dtv_dso.so /lib/
+/glibc/busybox cp /glibc/lib/tls_init_dso.so /lib/
+
+/glibc/busybox echo "#### OS COMP TEST GROUP START libctest-glibc ####"
+/glibc/busybox sh /glibc/run-static.sh
+/glibc/busybox sh /glibc/run-dynamic.sh
+/glibc/busybox echo "#### OS COMP TEST GROUP END libctest-glibc ####"
+
+# musl libctest测例
+# 复制动态库
+/musl/busybox mkdir -p /lib
+/musl/busybox cp /musl/lib/dlopen_dso.so /lib/
+/musl/busybox cp /musl/lib/libc.so /lib/
+/musl/busybox cp /musl/lib/tls_align_dso.so /lib/
+/musl/busybox cp /musl/lib/tls_get_new-dtv_dso.so /lib/
+/musl/busybox cp /musl/lib/tls_init_dso.so /lib/
+
+/musl/busybox echo "#### OS COMP TEST GROUP START libctest-musl ####"
+/musl/busybox sh /musl/run-static.sh
+/musl/busybox sh /musl/run-dynamic.sh
+/musl/busybox echo "#### OS COMP TEST GROUP END libctest-musl ####"
+
+
+# TODO
+# glibc lmbench测例
+# /glibc/busybox sh /glibc/lmbench_testcode.sh
+# musl lmbench测例
+# /musl/busybox sh /musl/lmbench_testcode.sh
+
+# TODO
+# glibc ltp测例
+# /glibc/busybox sh /glibc/ltp_testcode.sh
+# musl ltp测例
+# /musl/busybox sh /musl/ltp_testcode.sh
+
+# TODO
+# glibc lua测例
+# /glibc/busybox sh /glibc/lua_testcode.sh
+# musl lua测例
+# /musl/busybox sh /musl/lua_testcode.sh
+
+# TODO
+# glibc netperf测例
+# /glibc/busybox sh /glibc/netperf_testcode.sh
+# musl netperf测例
+# /musl/busybox sh /musl/netperf_testcode.sh
