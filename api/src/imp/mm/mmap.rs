@@ -108,11 +108,13 @@ pub fn sys_mmap(
                 VirtAddr::from(start),
                 aligned_length,
                 VirtAddrRange::new(aspace.base(), aspace.end()),
+                axhal::paging::PageSize::Size4K,
             )
             .or(aspace.find_free_area(
                 aspace.base(),
                 aligned_length,
                 VirtAddrRange::new(aspace.base(), aspace.end()),
+                axhal::paging::PageSize::Size4K,
             ))
             .ok_or(LinuxError::ENOMEM)?
     };
@@ -128,6 +130,7 @@ pub fn sys_mmap(
         aligned_length,
         permission_flags.into(),
         populate,
+        axhal::paging::PageSize::Size4K
     )?;
 
     if populate {
@@ -141,7 +144,7 @@ pub fn sys_mmap(
         let length = core::cmp::min(length, file_size - offset);
         let mut buf = vec![0u8; length];
         file.read_at(offset as u64, &mut buf)?;
-        aspace.write(start_addr, &buf)?;
+        aspace.write(start_addr, axhal::paging::PageSize::Size4K, &buf)?;
     }
     Ok(start_addr.as_usize() as _)
 }
@@ -171,7 +174,7 @@ pub fn sys_mprotect(addr: usize, length: usize, prot: u32) -> LinuxResult<isize>
     let mut aspace = process_data.aspace.lock();
     let length = memory_addr::align_up_4k(length);
     let start_addr = VirtAddr::from(addr);
-    aspace.protect(start_addr, length, permission_flags.into())?;
+    aspace.protect(start_addr, length, permission_flags.into(), axhal::paging::PageSize::Size4K)?;
 
     Ok(0)
 }

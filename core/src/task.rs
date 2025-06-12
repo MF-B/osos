@@ -8,9 +8,7 @@ use core::{
 };
 
 use alloc::{
-    string::String,
-    sync::{Arc, Weak},
-    vec::Vec,
+    collections::btree_map::BTreeMap, string::String, sync::{Arc, Weak}, vec::Vec
 };
 use axerrno::{LinuxError, LinuxResult};
 use axhal::{
@@ -30,7 +28,7 @@ use memory_addr::VirtAddrRange;
 use spin::{Once, RwLock};
 use weak_map::WeakMap;
 
-use crate::{futex::FutexTable, time::TimeStat};
+use crate::{futex::FutexTable, shm::ShmMapping, time::TimeStat};
 
 /// Create a new user task.
 pub fn new_user_task(
@@ -210,6 +208,9 @@ pub struct ProcessData {
 
     /// The futex table.
     pub futex_table: FutexTable,
+
+    /// The shared memory mappings.
+    pub shm_mappings: Mutex<BTreeMap<usize, ShmMapping>>,
 }
 
 impl ProcessData {
@@ -236,6 +237,7 @@ impl ProcessData {
             )),
 
             futex_table: FutexTable::new(),
+            shm_mappings: Mutex::new(BTreeMap::new()),
         }
     }
 

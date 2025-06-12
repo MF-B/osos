@@ -1,6 +1,7 @@
 //! [ArceOS](https://github.com/arceos-org/arceos) memory management module.
 
 #![no_std]
+#![feature(get_mut_unchecked)]
 
 #[macro_use]
 extern crate log;
@@ -18,6 +19,7 @@ use kspin::SpinNoIrq;
 use lazyinit::LazyInit;
 use memory_addr::{PhysAddr, va};
 use memory_set::MappingError;
+use page_table_multiarch::PageSize;
 
 static KERNEL_ASPACE: LazyInit<SpinNoIrq<AddrSpace>> = LazyInit::new();
 
@@ -37,7 +39,13 @@ pub fn new_kernel_aspace() -> AxResult<AddrSpace> {
         axconfig::plat::KERNEL_ASPACE_SIZE,
     )?;
     for r in axhal::mem::memory_regions() {
-        aspace.map_linear(phys_to_virt(r.paddr), r.paddr, r.size, r.flags.into())?;
+        aspace.map_linear(
+            phys_to_virt(r.paddr),
+            r.paddr,
+            r.size,
+            r.flags.into(),
+            PageSize::Size4K,
+        )?;
     }
     Ok(aspace)
 }

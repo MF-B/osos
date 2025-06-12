@@ -42,6 +42,7 @@ pub fn map_trampoline(aspace: &mut AddrSpace) -> AxResult {
         signal_trampoline_paddr,
         PAGE_SIZE_4K,
         MappingFlags::READ | MappingFlags::EXECUTE | MappingFlags::USER,
+        axhal::paging::PageSize::Size4K,
     )?;
     Ok(())
 }
@@ -81,12 +82,13 @@ fn map_elf(uspace: &mut AddrSpace, elf: &ElfFile) -> AxResult<(VirtAddr, [AuxvEn
             seg_align_size,
             segement.flags,
             true,
+            axhal::paging::PageSize::Size4K,
         )?;
         let seg_data = elf
             .input
             .get(segement.offset..segement.offset + segement.filesz as usize)
             .ok_or(AxError::InvalidData)?;
-        uspace.write(segement.vaddr, seg_data)?;
+        uspace.write(segement.vaddr, axhal::paging::PageSize::Size4K, seg_data)?;
         // TDOO: flush the I-cache
     }
 
@@ -127,12 +129,20 @@ pub fn load_user_app(
             .collect();
 
         // 添加解释器路径映射
-        if let Some(interpreter) = new_args.first_mut() {
+        if let Some(interpreter) = new_args.first() {
             match interpreter.as_str() {
                 "/bin/sh" | "/bin/bash" => {
-                    *interpreter = "/musl/busybox".to_string();
+                    new_args[0] = "/musl/busybox".to_string();
                     new_args.insert(1, "sh".to_string());
                 }
+                "/bin/busybox" => {
+                    new_args[0] = "/musl/busybox".to_string();
+                }
+                // path if path.starts_with("/bin/") => {
+                //     let command = path.strip_prefix("/bin/").unwrap().to_string();
+                //     new_args[0] = "/musl/busybox".to_string();
+                //     new_args.insert(1, command);
+                // },
                 _ => {}
             }
         }
@@ -158,32 +168,16 @@ pub fn load_user_app(
                 .map_err(|_| AxError::InvalidData)?,
         )?;
 
-        if interp_path == "/lib/ld-linux-riscv64-lp64.so.1"  
-            || interp_path == "/lib64/ld-linux-loongarch-lp64d.so.1"  
-            || interp_path == "/lib64/ld-linux-x86-64.so.2"  
+        if interp_path == "/lib/ld-linux-riscv64-lp64.so.1"
+            || interp_path == "/lib64/ld-linux-loongarch-lp64d.so.1"
+            || interp_path == "/lib64/ld-linux-x86-64.so.2"
             || interp_path == "/lib/ld-linux-aarch64.so.1"
             || interp_path == "/lib/ld-linux-riscv64-lp64d.so.1"
             || interp_path == "/lib/ld-musl-riscv64-sf.so.1"
             || interp_path == "/lib64/ld-musl-loongarch-lp64d.so.1"
-        {  
-            interp_path = String::from("/musl/lib/libc.so");  
+        {
+            interp_path = String::from("/musl/lib/libc.so");
         }
-
-        // if interp_path == "/lib/ld-linux-riscv64-lp64.so.1"  
-        //     || interp_path == "/lib64/ld-linux-loongarch-lp64d.so.1"  
-        //     || interp_path == "/lib64/ld-linux-x86-64.so.2"  
-        //     || interp_path == "/lib/ld-linux-aarch64.so.1"
-        //     || interp_path == "/lib/ld-glibc-riscv64-sf.so.1"
-        //     || interp_path == "/lib64/ld-glibc-loongarch-lp64d.so.1"
-        // {  
-        //     interp_path = String::from("/musl/lib/libc.so");  
-        // }
-
-        // if interp_path == "/lib64/ld-linux-loongarch-lp64d.so.1"
-        //     || interp_path == "/lib/ld-linux-loongarch-lp64d.so.1"
-        // {
-        //     interp_path = String::from("/glibc/lib/ld-linux-loongarch-lp64d.so.1");
-        // }
 
         // Set the first argument to the path of the user app.
         let mut new_args = vec![interp_path];
@@ -210,6 +204,7 @@ pub fn load_user_app(
         ustack_size,
         MappingFlags::READ | MappingFlags::WRITE | MappingFlags::USER,
         true,
+        axhal::paging::PageSize::Size4K,
     )?;
 
     let heap_start = VirtAddr::from_usize(axconfig::plat::USER_HEAP_BASE);
@@ -219,11 +214,16 @@ pub fn load_user_app(
         heap_size,
         MappingFlags::READ | MappingFlags::WRITE | MappingFlags::USER,
         true,
+        axhal::paging::PageSize::Size4K,
     )?;
 
     let user_sp = ustack_end - stack_data.len();
 
-    uspace.write(user_sp, stack_data.as_slice())?;
+    uspace.write(
+        user_sp,
+        axhal::paging::PageSize::Size4K,
+        stack_data.as_slice(),
+    )?;
 
     Ok((entry, user_sp))
 }
@@ -234,15 +234,15 @@ static mut ACCESSING_USER_MEM: bool = false;
 /// Enables scoped access into user memory, allowing page faults to occur inside
 /// kernel.
 pub fn access_user_memory<R>(f: impl FnOnce() -> R) -> R {
-    ACCESSING_USER_MEM.with_current(|v| {
+    unsafe { ACCESSING_USER_MEM.with_current(|v| {
         *v = true;
         let result = f();
         *v = false;
         result
-    })
+    }) }
 }
 
 /// Check if the current thread is accessing user memory.
 pub fn is_accessing_user_memory() -> bool {
-    ACCESSING_USER_MEM.read_current()
+    unsafe { ACCESSING_USER_MEM.read_current() }
 }

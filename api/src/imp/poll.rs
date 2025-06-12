@@ -1,9 +1,9 @@
 use crate::{
-    file::{FileLike, get_file_like},
+    file::get_file_like,
     ptr::UserPtr,
 };
 use alloc::vec::Vec;
-use axerrno::{LinuxError, LinuxResult};
+use axerrno::LinuxResult;
 use bitflags::bitflags;
 use linux_raw_sys::general::*;
 use axtask::current;
@@ -59,7 +59,7 @@ pub fn sys_poll(fds: UserPtr<Pollfd>, nfds: usize, timeout: i32) -> LinuxResult<
 }
 
 fn poll_files(poll_fds: &mut [Pollfd], timeout: i32) -> LinuxResult<usize> {  
-    let mut ready_count = 0;  
+    let mut ready_count;  
       
     // 第一次轮询检查  
     ready_count = check_poll_fds(poll_fds);  

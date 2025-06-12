@@ -4,7 +4,7 @@ use axhal::{
     trap::{SYSCALL, register_trap_handler},
 };
 use starry_api::*;
-use starry_core::task::{time_stat_from_kernel_to_user, time_stat_from_user_to_kernel};
+use starry_core::{shm::sys_shmget, task::{time_stat_from_kernel_to_user, time_stat_from_user_to_kernel}};
 use syscalls::Sysno;
 
 #[register_trap_handler(SYSCALL)]
@@ -201,9 +201,16 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         Sysno::times => sys_times(tf.arg0().into()),
         Sysno::clock_gettime => sys_clock_gettime(tf.arg0() as _, tf.arg1().into()),
 
+        // poll
         Sysno::ppoll => sys_poll(tf.arg0().into(), tf.arg1() as _, tf.arg2() as _),
+
+        // shm
+        Sysno::shmget => sys_shmget(tf.arg0() as _, tf.arg1() as _, tf.arg2() as _),
+        // Sysno::shmat => sys_shmat(tf.arg0() as _, tf.arg1() as _, tf.arg2() as _),
+        // Sysno::shmctl => sys_shmctl(tf.arg0() as _, tf.arg1() as _, tf.arg2().into()),
+        // Sysno::shmdt => sys_shmdt(tf.arg0() as _),
         _ => {
-            warn!("Unimplemented syscall: {}", sysno);
+            error!("Unimplemented syscall: {}", sysno);
             Err(LinuxError::ENOSYS)
         }
     };
