@@ -46,9 +46,8 @@ impl SharedMemorySegment {
     /// 显式清理共享内存段
     pub fn cleanup(&self) {
         // 释放物理内存页面
-        for page in &self.pages {
-            // 调用内存管理器释放页面
-            alloc_dealloc_frame(*page);
+        for _page in &self.pages {
+            // TODO: 调用内存管理器释放页面
         }
     }
 }
@@ -65,22 +64,6 @@ pub struct ShmMapping {
     pub size: usize,
     /// 映射标志
     pub flags: u32,
-}
-
-/// 分配物理页面的辅助函数
-fn alloc_physical_frame() -> Option<PhysAddr> {
-    use axhal::paging::{PagingHandlerImpl};
-    use page_table_multiarch::PagingHandler;
-    
-    PagingHandlerImpl::alloc_frame()
-}
-
-/// 释放物理页面的辅助函数
-fn alloc_dealloc_frame(paddr: PhysAddr) {
-    use axhal::paging::{PagingHandlerImpl};
-    use page_table_multiarch::PagingHandler;
-    
-    PagingHandlerImpl::dealloc_frame(paddr);
 }
 
 /// 根据共享内存段ID获取共享内存段
@@ -175,23 +158,16 @@ pub fn sys_shmget(key: i32, size: usize, shmflg: i32) -> LinuxResult<isize> {
     // 3. 创建新的共享内存段
     let curr = current();
     let creator_pid = curr.task_ext().thread.process().pid();
+    let aspace = curr.task_ext().process_data().aspace.lock();
     let perm = (shmflg & 0o777) as u16;
 
     // 分配物理页面
-    let page_count = (size + 4095) / 4096;  // 向上取整到4K页面
+    let page_count = (size + 4095) / 4096;
     let mut pages = Vec::new();
 
-    // 分配所需的物理页面
-    for _ in 0..page_count {
-        if let Some(page_addr) = alloc_physical_frame() {
-            pages.push(page_addr);
-        } else {
-            // 分配失败，释放已分配的页面
-            for allocated_page in pages {
-                alloc_dealloc_frame(allocated_page);
-            }
-            return Err(LinuxError::ENOMEM);
-        }
+    for _ in 0..page_count { 
+        // TODO: 分配物理页面
+        // aspace.map_shared(start, size, name, flags, align)
     }
 
     // 先分配 shmid
