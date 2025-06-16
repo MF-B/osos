@@ -158,15 +158,15 @@ pub fn sys_shmget(key: i32, size: usize, shmflg: i32) -> LinuxResult<isize> {
     // 3. 创建新的共享内存段
     let curr = current();
     let creator_pid = curr.task_ext().thread.process().pid();
+    let aspace = curr.task_ext().process_data().aspace.lock();
     let perm = (shmflg & 0o777) as u16;
 
     // 分配物理页面
     let page_count = (size + 4095) / 4096;
     let mut pages = Vec::new();
 
-    for _ in 0..page_count { 
-        // TODO: 分配物理页面
-    }
+    // TODO: 分配物理页面
+    // aspace.map_shared(start, size, name, flags, align)
 
     // 先分配 shmid
     let shmid = NEXT_SHMID.fetch_add(1, Ordering::SeqCst);
