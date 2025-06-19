@@ -234,15 +234,15 @@ static mut ACCESSING_USER_MEM: bool = false;
 /// Enables scoped access into user memory, allowing page faults to occur inside
 /// kernel.
 pub fn access_user_memory<R>(f: impl FnOnce() -> R) -> R {
-    unsafe { ACCESSING_USER_MEM.with_current(|v| {
+    ACCESSING_USER_MEM.with_current(|v| {
         *v = true;
         let result = f();
         *v = false;
         result
-    }) }
+    })
 }
 
 /// Check if the current thread is accessing user memory.
 pub fn is_accessing_user_memory() -> bool {
-    unsafe { ACCESSING_USER_MEM.read_current() }
+    ACCESSING_USER_MEM.read_current()
 }

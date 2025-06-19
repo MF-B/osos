@@ -94,13 +94,13 @@ impl Backend {
                     mapped_count += 1;
                 } else {
                     // Mapping failed, need to clean up already mapped pages
-                    let mut cleanup_offset = 0;
+                    let mut _cleanup_offset = 0;
                     if let Some(cleanup_iter) = PageIterWrapper::new(start, start + mapped_count * align as usize, align) {
                         for cleanup_vaddr in cleanup_iter {
                             if let Ok((_, _, tlb)) = pt.unmap(cleanup_vaddr) {
                                 tlb.flush();
                             }
-                            cleanup_offset += align as usize;
+                            _cleanup_offset += align as usize;
                         }
                     }
                     

@@ -8,7 +8,7 @@ use core::{
 };
 
 use alloc::{
-    collections::btree_map::BTreeMap, string::String, sync::{Arc, Weak}, vec::Vec
+    string::String, sync::{Arc, Weak}, vec::Vec
 };
 use axerrno::{LinuxError, LinuxResult};
 use axhal::{
