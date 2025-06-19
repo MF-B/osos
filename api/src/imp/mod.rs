@@ -6,5 +6,6 @@ mod sys;
 mod task;
 mod time;
 mod poll;
+mod shm;
 
-pub use self::{fs::*, futex::*, mm::*, signal::*, sys::*, task::*, time::*, poll::*};
+pub use self::{fs::*, futex::*, mm::*, signal::*, sys::*, task::*, time::*, poll::*, shm::*};
