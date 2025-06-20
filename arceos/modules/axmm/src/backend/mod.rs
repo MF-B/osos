@@ -1,6 +1,5 @@
 //! Memory mapping backends.
 
-use ::alloc::string::String;
 use axhal::paging::{MappingFlags, PageTable};
 use memory_addr::VirtAddr;
 use memory_set::MappingBackend;
@@ -9,7 +8,6 @@ use page_table_multiarch::PageSize;
 
 mod alloc;
 mod linear;
-mod shared;
 mod page_iter_wrapper;
 
 /// A unified enum type for different memory mapping backends.
@@ -45,12 +43,6 @@ pub enum Backend {
         /// Alignment parameters for the starting address and memory range.
         align: PageSize,
     },
-    /// Shared mapping backend.
-    Shared {
-        name: String,
-        size: usize,
-        align: PageSize,
-    },
 }
 
 impl MappingBackend for Backend {
@@ -66,9 +58,6 @@ impl MappingBackend for Backend {
             Self::Alloc { populate, align } => {
                 Self::map_alloc(start, size, flags, pt, populate, align)
             },
-            Self::Shared { ref name, size: shared_size, align } => {
-                Self::map_shared(start, name, size.min(shared_size), flags, pt, align)
-            }
         }
     }
 
@@ -79,9 +68,6 @@ impl MappingBackend for Backend {
                 align: _,
             } => Self::unmap_linear(start, size, pt, pa_va_offset),
             Self::Alloc { populate, align } => Self::unmap_alloc(start, size, pt, populate, align),
-            Self::Shared { ref name, size: _, align } => {
-                Self::unmap_shared(start, name, size, pt, align)
-            }
         }
     }
 
@@ -110,9 +96,6 @@ impl Backend {
             Self::Linear { .. } => false, // Linear mappings should not trigger page faults.
             Self::Alloc { populate, align } => {
                 Self::handle_page_fault_alloc(vaddr, orig_flags, page_table, populate, align)
-            }
-            Self::Shared { ref name, size: _, align } => {
-                Self::handle_page_fault_shared(vaddr, name, orig_flags, page_table, align)
             }
         }
     }

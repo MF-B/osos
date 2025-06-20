@@ -1,8 +1,11 @@
 use axerrno::{LinuxError, LinuxResult};
-use axhal::mem::{PhysAddr, VirtAddr};
+use axhal::{mem::{PhysAddr, VirtAddr}, paging::{MappingFlags, PageSize}};
+use axtask::current;
+use memory_addr::{MemoryAddr, VirtAddrRange};
 use crate::ptr::UserPtr;
 use alloc::{collections::BTreeMap, sync::Arc};
 use spin::{Mutex, RwLock};
+use axtask::TaskExtRef;
 
 /// IPC flags
 pub const IPC_CREAT: i32 = 0o1000;
@@ -62,18 +65,82 @@ pub struct IpcPerm {
 /// # Returns
 /// * `Ok(shmid)` - Shared memory identifier on success
 /// * `Err(LinuxError)` - Error code on failure
-pub fn sys_shmget(key: Key, size: usize, shmflg: i32) -> LinuxResult<isize> {
+pub fn sys_shmget(key: Key, size: isize, shmflg: i32) -> LinuxResult<isize> {
     debug!("sys_shmget: key={}, size={}, shmflg={:#x}", key, size, shmflg);
     
-    // TODO: Implement shared memory segment creation/retrieval logic
-    // 1. Check if key already exists (unless IPC_CREAT | IPC_EXCL)
-    // 2. Validate size requirements
-    // 3. Check permissions
-    // 4. Allocate physical memory if creating new segment
-    // 5. Return shmid
+    // 检查大小参数的有效性
+    if size < 0 {
+        return Err(LinuxError::EINVAL);
+    }
     
-    warn!("sys_shmget not implemented yet");
-    Err(LinuxError::ENOSYS)
+    let size = size as usize;
+    
+    const IPC_PRIVATE: Key = 0;
+    let create_flag = (shmflg & IPC_CREAT) != 0;
+    let excl_flag = (shmflg & IPC_EXCL) != 0;
+    let permissions = (shmflg & 0o777) as u16;
+    
+    let mut manager = SHM_MANAGER.lock();
+    
+    // 如果key是IPC_PRIVATE，总是创建新的段
+    if key == IPC_PRIVATE {
+        if size <= 0 {
+            return Err(LinuxError::EINVAL);
+        }
+        
+        let shmid = manager.create_segment(key, size, permissions)?;
+        return Ok(shmid as isize);
+    }
+    
+    // 查找是否已存在相同key的段
+    let existing_segment = manager.segments.iter()
+        .find(|(_, segment)| {
+            let seg = segment.read();
+            seg.key == key && !seg.marked_for_removal
+        })
+        .map(|(shmid, segment)| (*shmid, segment.clone()));
+    
+    match existing_segment {
+        Some((shmid, segment_arc)) => {
+            // 找到了现有的段
+            if excl_flag && create_flag {
+                // IPC_CREAT | IPC_EXCL 但段已存在
+                return Err(LinuxError::EEXIST);
+            }
+            
+            // 检查大小要求
+            let segment = segment_arc.read();
+            if size > 0 && size > segment.size {
+                return Err(LinuxError::EINVAL);
+            }
+            
+            // 检查权限 - 简化版本，实际应该检查访问权限
+            let uid = 0; // TODO: 从当前进程获取真实的uid
+            let gid = 0; // TODO: 从当前进程获取真实的gid
+            
+            if !segment.check_permission(uid, gid, false) {
+                return Err(LinuxError::EACCES);
+            }
+            
+            debug!("Found existing shared memory segment: id={}, key={}", shmid, key);
+            Ok(shmid as isize)
+        }
+        None => {
+            // 没有找到现有的段
+            if !create_flag {
+                // 没有IPC_CREAT标志，不能创建新段
+                return Err(LinuxError::ENOENT);
+            }
+            
+            if size == 0 {
+                return Err(LinuxError::EINVAL);
+            }
+            
+            // 创建新的共享内存段
+            let shmid = manager.create_segment(key, size, permissions)?;
+            Ok(shmid as isize)
+        }
+    }
 }
 
 /// System call: shmat - attach shared memory segment
@@ -88,18 +155,131 @@ pub fn sys_shmget(key: Key, size: usize, shmflg: i32) -> LinuxResult<isize> {
 /// * `Err(LinuxError)` - Error code on failure
 pub fn sys_shmat(shmid: ShmId, shmaddr: usize, shmflg: i32) -> LinuxResult<isize> {
     debug!("sys_shmat: shmid={}, shmaddr={:#x}, shmflg={:#x}", shmid, shmaddr, shmflg);
+
+    let current_task = current();
+    let mut aspace = current_task.task_ext().process_data().aspace.lock();
     
-    // TODO: Implement shared memory attachment logic
-    // 1. Validate shmid
-    // 2. Check permissions (read/write based on shmflg)
-    // 3. Find suitable virtual address if shmaddr is 0
-    // 4. Handle SHM_RND flag for address rounding
-    // 5. Map shared memory into process address space
-    // 6. Update attachment count
-    // 7. Return virtual address
+    // 获取共享内存段
+    let manager = SHM_MANAGER.lock();
+    let segment_arc = manager.get_segment(shmid)
+        .ok_or(LinuxError::EINVAL)?;
     
-    warn!("sys_shmat not implemented yet");
-    Err(LinuxError::ENOSYS)
+    let segment = segment_arc.read();
+    
+    // 检查权限
+    let want_write = (shmflg & SHM_RDONLY) == 0;
+    let uid = 0; // TODO: 从当前进程获取真实的uid/gid
+    let gid = 0;
+    
+    if !segment.check_permission(uid, gid, want_write) {
+        return Err(LinuxError::EACCES);
+    }
+ 
+    let aligned_length = memory_addr::align_up_4k(segment.size);
+    
+    let attach_addr = if shmaddr == 0 {
+        // 系统选择地址 - 在用户空间中寻找合适的地址
+        let hint_addr = aspace.base(); // 用户空间起始地址
+        let limit = VirtAddrRange::from_start_size(aspace.base(), aspace.size());
+        let align = PageSize::Size4K;
+        
+        match aspace.find_free_area(hint_addr, aligned_length, limit, align) {
+            Some(addr) => addr,
+            _ => return Err(LinuxError::ENOMEM),
+        }
+    } else {
+        let mut addr = VirtAddr::from(shmaddr);
+        
+        // 如果设置了 SHM_RND，需要对齐到 SHMLBA 边界
+        if (shmflg & SHM_RND) != 0 {
+            const SHMLBA: usize = 4096; // 页面大小对齐
+            addr = VirtAddr::from(addr.as_usize() & !(SHMLBA - 1));
+        }
+        
+        // 检查地址是否页面对齐
+        if !addr.is_aligned(PageSize::Size4K) {
+            return Err(LinuxError::EINVAL);
+        }
+        
+        addr
+    };
+    
+    // 设置映射权限
+    let mut mapping_flags = MappingFlags::USER;
+    if want_write {
+        mapping_flags |= MappingFlags::WRITE;
+    }
+    mapping_flags |= MappingFlags::READ;
+
+    let paddr = segment.phys_addr;
+    
+    drop(segment); // 释放读锁
+    drop(manager); // 释放管理器锁
+
+    let need_allocate = paddr.as_usize() == 0;
+    
+    // 映射共享内存到地址空间
+    let result = if need_allocate {
+        // 第一次映射，需要分配物理内存
+        let mut segment = segment_arc.write();
+        let map_result = aspace.map_alloc(
+            attach_addr,
+            aligned_length,
+            mapping_flags,
+            true,
+            PageSize::Size4K,
+        );
+
+        // 如果映射成功，更新segment的物理地址
+        if map_result.is_ok() {
+            // 获取映射后的物理地址
+            if let Ok(pt_result) = aspace.page_table().query(attach_addr) {
+                let phys_addr = pt_result.0;
+                segment.phys_addr = phys_addr;
+                drop(segment);
+            } else {
+                // 如果查询物理地址失败，应该取消映射
+                let _ = aspace.unmap(attach_addr, aligned_length);
+                return Err(LinuxError::ENOMEM);
+            }
+        }
+
+        map_result
+    } else {
+        // 物理内存已分配，直接映射到指定物理地址
+        aspace.map_linear(
+            attach_addr,
+            paddr,
+            aligned_length,
+            mapping_flags,
+            PageSize::Size4K,
+        )
+    };
+    
+    if result.is_err() {
+        return Err(LinuxError::ENOMEM);
+    }
+    
+    // 更新段的连接信息
+    {
+        let mut segment = segment_arc.write();
+        segment.attach_count += 1;
+        segment.attach_time = axhal::time::wall_time().as_secs();
+    }
+    
+    // 记录连接信息到管理器
+    {
+        let mut manager = SHM_MANAGER.lock();
+        manager.attachments
+            .entry(shmid)
+            .or_insert_with(BTreeMap::new)
+            .insert(attach_addr, current_task.id().as_u64() as u32);
+    }
+    
+    debug!("Successfully attached shared memory segment {} at address {:#x}", 
+           shmid, attach_addr.as_usize());
+    
+    Ok(attach_addr.as_usize() as isize)
 }
 
 /// System call: shmctl - shared memory control operations
@@ -112,34 +292,118 @@ pub fn sys_shmat(shmid: ShmId, shmaddr: usize, shmflg: i32) -> LinuxResult<isize
 /// # Returns
 /// * `Ok(0)` - Success
 /// * `Err(LinuxError)` - Error code on failure
-pub fn sys_shmctl(shmid: ShmId, cmd: i32, _buf: UserPtr<ShmidDs>) -> LinuxResult<isize> {
+pub fn sys_shmctl(shmid: ShmId, cmd: i32, buf: UserPtr<ShmidDs>) -> LinuxResult<isize> {
     debug!("sys_shmctl: shmid={}, cmd={}", shmid, cmd);
+    
+    let manager = SHM_MANAGER.lock();
+    let segment_arc = manager.get_segment(shmid)
+        .ok_or(LinuxError::EINVAL)?;
+    
+    // 获取当前进程的uid/gid (简化版本，实际应从进程获取)
+    let current_uid = 0; // TODO: 从当前进程获取真实的uid
+    let current_gid = 0; // TODO: 从当前进程获取真实的gid
     
     match cmd {
         IPC_STAT => {
-            // TODO: Copy shared memory segment info to user buffer
-            // 1. Validate shmid and permissions
-            // 2. Fill shmid_ds structure with segment information
-            // 3. Copy to user space using buf.get_as_mut()?
-            warn!("sys_shmctl IPC_STAT not implemented yet");
-            Err(LinuxError::ENOSYS)
+            // 获取共享内存段状态
+            let segment = segment_arc.read();
+            
+            // 检查读权限
+            if !segment.check_permission(current_uid, current_gid, false) {
+                return Err(LinuxError::EACCES);
+            }
+            
+            let shmid_ds = segment.to_shmid_ds();
+            drop(segment);
+            drop(manager);
+            
+            // 将数据写入用户空间
+            if !buf.is_null() {
+                let user_buf = buf.get_as_mut()?;
+                *user_buf = shmid_ds;
+            } else {
+                return Err(LinuxError::EFAULT);
+            }
+            
+            debug!("sys_shmctl IPC_STAT: successfully retrieved segment info");
+            Ok(0)
         }
+        
         IPC_SET => {
-            // TODO: Set shared memory segment attributes
-            // 1. Validate shmid and permissions
-            // 2. Copy shmid_ds from user space using buf.get_as_ref()?
-            // 3. Update segment attributes (owner, permissions, etc.)
-            warn!("sys_shmctl IPC_SET not implemented yet");
-            Err(LinuxError::ENOSYS)
+            // 设置共享内存段属性
+            let mut segment = segment_arc.write();
+            
+            // 检查是否有修改权限 (需要是所有者或root)
+            if segment.owner_uid != current_uid && current_uid != 0 {
+                return Err(LinuxError::EPERM);
+            }
+            
+            // 从用户空间读取新的属性
+            let new_shmid_ds = if !buf.is_null() {
+                let user_buf = buf.get_as_mut()?;
+                *user_buf
+            } else {
+                return Err(LinuxError::EFAULT);
+            };
+            
+            // 更新可修改的字段
+            segment.owner_uid = new_shmid_ds.shm_perm.uid;
+            segment.owner_gid = new_shmid_ds.shm_perm.gid;
+            segment.perm = new_shmid_ds.shm_perm.mode;
+            segment.change_time = axhal::time::wall_time().as_secs();
+            
+            debug!("sys_shmctl IPC_SET: updated segment attributes");
+            Ok(0)
         }
+        
         IPC_RMID => {
-            // TODO: Mark shared memory segment for removal
-            // 1. Validate shmid and permissions
-            // 2. Mark segment for deletion
-            // 3. Remove immediately if no attachments, or defer until all detach
-            warn!("sys_shmctl IPC_RMID not implemented yet");
-            Err(LinuxError::ENOSYS)
+            // 标记共享内存段为删除
+            let mut segment = segment_arc.write();
+            
+            // 检查是否有删除权限 (需要是所有者或root)
+            if segment.owner_uid != current_uid && current_uid != 0 {
+                return Err(LinuxError::EPERM);
+            }
+            
+            // 标记为删除
+            segment.marked_for_removal = true;
+            segment.change_time = axhal::time::wall_time().as_secs();
+            
+            let attach_count = segment.attach_count;
+            drop(segment);
+            
+            // 如果没有进程连接，立即清理
+            if attach_count == 0 {
+                // 从管理器中移除段
+                drop(manager);
+                let mut manager = SHM_MANAGER.lock();
+                if let Some(removed_segment) = manager.segments.remove(&shmid) {
+                    // 清理相关的attachment记录
+                    manager.attachments.remove(&shmid);
+                    
+                    // 获取物理地址用于可能的内存回收
+                    let segment = removed_segment.read();
+                    let phys_addr = segment.phys_addr;
+                    drop(segment);
+                    
+                    debug!("sys_shmctl IPC_RMID: immediately removed segment {} (no attachments)", shmid);
+                    
+                    // TODO: 这里可以添加实际的物理内存释放逻辑
+                    // 如果需要释放物理内存，可以在这里实现
+                    if phys_addr.as_usize() != 0 {
+                        debug!("Physical memory at {:?} can be freed", phys_addr);
+                    }
+                } else {
+                    debug!("sys_shmctl IPC_RMID: segment {} already removed", shmid);
+                }
+            } else {
+                debug!("sys_shmctl IPC_RMID: marked segment {} for removal ({} attachments remain)", 
+                       shmid, attach_count);
+            }
+            
+            Ok(0)
         }
+        
         _ => {
             warn!("sys_shmctl: unsupported command {}", cmd);
             Err(LinuxError::EINVAL)
@@ -158,15 +422,96 @@ pub fn sys_shmctl(shmid: ShmId, cmd: i32, _buf: UserPtr<ShmidDs>) -> LinuxResult
 pub fn sys_shmdt(shmaddr: usize) -> LinuxResult<isize> {
     debug!("sys_shmdt: shmaddr={:#x}", shmaddr);
     
-    // TODO: Implement shared memory detachment logic
-    // 1. Find shared memory segment by address
-    // 2. Validate that address is a valid attachment point
-    // 3. Unmap memory from process address space
-    // 4. Decrement attachment count
-    // 5. If marked for removal and no more attachments, free segment
+    if shmaddr == 0 {
+        return Err(LinuxError::EINVAL);
+    }
     
-    warn!("sys_shmdt not implemented yet");
-    Err(LinuxError::ENOSYS)
+    let addr = VirtAddr::from(shmaddr);
+    
+    // 检查地址是否页面对齐
+    if !addr.is_aligned(PageSize::Size4K) {
+        return Err(LinuxError::EINVAL);
+    }
+    
+    let current_task = current();
+    let current_pid = current_task.id().as_u64() as u32;
+    
+    // 查找该地址对应的共享内存段
+    let mut manager = SHM_MANAGER.lock();
+    let mut found_shmid = None;
+    
+    // 在attachments中查找该地址
+    for (shmid, attachments) in manager.attachments.iter() {
+        if let Some(&pid) = attachments.get(&addr) {
+            if pid == current_pid {
+                found_shmid = Some(*shmid);
+                break;
+            }
+        }
+    }
+    
+    let shmid = found_shmid.ok_or(LinuxError::EINVAL)?;
+    
+    // 获取共享内存段信息
+    let segment_arc = manager.get_segment(shmid)
+        .ok_or(LinuxError::EINVAL)?;
+    
+    let segment_size = {
+        let segment = segment_arc.read();
+        segment.size
+    };
+    
+    // 从attachments中移除该连接
+    if let Some(attachments) = manager.attachments.get_mut(&shmid) {
+        attachments.remove(&addr);
+        if attachments.is_empty() {
+            manager.attachments.remove(&shmid);
+        }
+    }
+    
+    drop(manager); // 释放管理器锁
+    
+    // 从进程地址空间中取消映射
+    let mut aspace = current_task.task_ext().process_data().aspace.lock();
+    let aligned_length = memory_addr::align_up_4k(segment_size);
+    
+    match aspace.unmap(addr, aligned_length) {
+        Ok(_) => {
+            debug!("Successfully unmapped shared memory at address {:#x}", shmaddr);
+        }
+        Err(e) => {
+            warn!("Failed to unmap shared memory at address {:#x}: {:?}", shmaddr, e);
+            return Err(LinuxError::EINVAL);
+        }
+    }
+    
+    drop(aspace); // 释放地址空间锁
+    
+    // 更新段的分离信息并检查是否需要清理
+    let should_cleanup = {
+        let mut segment = segment_arc.write();
+        if segment.attach_count > 0 {
+            segment.attach_count -= 1;
+        }
+        segment.detach_time = axhal::time::wall_time().as_secs();
+        
+        // 检查是否应该清理段
+        segment.marked_for_removal && segment.attach_count == 0
+    };
+    
+    // 如果段被标记为删除且没有进程连接，则立即清理
+    if should_cleanup {
+        let mut manager = SHM_MANAGER.lock();
+        if let Some(_removed_segment) = manager.segments.remove(&shmid) {
+            // 清理相关的attachment记录（应该已经为空）
+            manager.attachments.remove(&shmid);
+        }
+    }
+
+    debug!("Successfully detached shared memory segment {} from address {:#x}", 
+           shmid, shmaddr);
+    
+    Ok(0)
 }
 
 /// Helper structures and functions for SHM implementation
@@ -199,7 +544,7 @@ impl ShmSegment {
             owner_uid: uid,
             owner_gid: gid,
             creator_uid: uid,
-            creator_gid: gid,
+            creator_gid: uid,
             attach_count: 0,
             change_time: axhal::time::wall_time().as_secs(),
             attach_time: 0,
@@ -267,6 +612,7 @@ impl ShmSegment {
 pub struct ShmManager {
     segments: BTreeMap<ShmId, Arc<RwLock<ShmSegment>>>,
     next_id: ShmId,
+    attachments: BTreeMap<ShmId, BTreeMap<VirtAddr, u32>>,
 }
 
 impl ShmManager {
@@ -274,27 +620,48 @@ impl ShmManager {
         Self {
             segments: BTreeMap::new(),
             next_id: 1,
+            attachments: BTreeMap::new(),
         }
     }
     
-    pub fn get_segment(&self, _shmid: ShmId) -> Option<&ShmSegment> {
-        // TODO: Retrieve segment by ID
-        None
+    pub fn get_segment(&self, shmid: ShmId) -> Option<Arc<RwLock<ShmSegment>>> {
+        self.segments.get(&shmid).cloned()
+    }
+
+    /// 获取共享内存段的只读访问
+    pub fn with_segment<T, F>(&self, shmid: ShmId, f: F) -> Option<T>
+    where
+        F: FnOnce(&ShmSegment) -> T,
+    {
+        self.segments.get(&shmid).map(|segment| {
+            let seg = segment.read();
+            f(&*seg)
+        })
     }
     
-    pub fn create_segment(&mut self, _key: Key, _size: usize, _perm: u16) -> Result<ShmId, LinuxError> {
-        // TODO: Create new segment and return its ID
-        Err(LinuxError::ENOSYS)
-    }
-    
-    pub fn attach_segment(&mut self, _shmid: ShmId, _addr: VirtAddr) -> Result<(), LinuxError> {
-        // TODO: Record attachment and update counters
-        Err(LinuxError::ENOSYS)
-    }
-    
-    pub fn detach_segment(&mut self, _addr: VirtAddr) -> Result<ShmId, LinuxError> {
-        // TODO: Find segment by address and detach
-        Err(LinuxError::ENOSYS)
+    pub fn create_segment(&mut self, key: Key, size: usize, perm: u16) -> Result<ShmId, LinuxError> {
+        // 验证大小参数
+        if size == 0 {
+            return Err(LinuxError::EINVAL);
+        }
+        
+        // 生成新的segment ID并创建唯一的共享内存名称
+        let shmid = self.next_id;
+        self.next_id += 1;
+        
+        // 创建ShmSegment
+        let uid = 0; // TODO: 从当前进程获取真实的uid/gid
+        let gid = 0;
+        
+        let segment = ShmSegment::new(key, size, perm, uid, gid);
+        
+        // 将段添加到管理器
+        self.segments.insert(shmid, Arc::new(RwLock::new(segment)));
+        
+        debug!("Created shared memory segment: id={}, key={}, size={}", 
+               shmid, key, size);
+        
+        Ok(shmid)
     }
 }
 

@@ -1,6 +1,5 @@
 use core::fmt;
 
-use alloc::string::String;
 use axerrno::{AxError, AxResult, ax_err};
 use axhal::mem::phys_to_virt;
 use axhal::paging::{MappingFlags, PageTable, PagingError};
@@ -222,30 +221,6 @@ impl AddrSpace {
         Ok(())
     }
 
-    /// Add a new shared mapping.
-    ///
-    /// Multiple address spaces can map to the same shared physical pages
-    /// using the same `name` identifier.
-    ///
-    /// Returns an error if the address range is out of the address space or not
-    /// aligned.
-    pub fn map_shared(
-        &mut self,
-        start: VirtAddr,
-        size: usize,
-        name: String,
-        flags: MappingFlags,
-        align: PageSize,
-    ) -> AxResult {
-        self.validate_region(start, size, align)?;
-
-        let area = MemoryArea::new(start, size, flags, Backend::new_shared(name, size, align));
-        self.areas
-            .map(area, &mut self.pt, false)
-            .map_err(mapping_err_to_ax_err)?;
-        Ok(())
-    }
-
     /// Populates the area with physical frames, returning false if the area
     /// contains unmapped area.
     pub fn populate_area(&mut self, mut start: VirtAddr, size: usize, align: PageSize) -> AxResult {
@@ -305,7 +280,6 @@ impl AddrSpace {
                     pa_va_offset: _,
                     align,
                 } => align,
-                Backend::Shared { align, .. } => align,
             };
 
             let unmap_start = start.max(area.start());
