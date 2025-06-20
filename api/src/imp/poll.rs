@@ -1,14 +1,18 @@
+use core::mem;
+
 use crate::{
     file::get_file_like,
-    ptr::UserPtr,
+    ptr::{UserConstPtr, UserPtr},
+    time::TimeValueLike,
 };
 use alloc::vec::Vec;
 use axerrno::LinuxResult;
+use axhal::time::Duration;
+use axsignal::SignalSet;
+use axtask::TaskExtRef;
+use axtask::current;
 use bitflags::bitflags;
 use linux_raw_sys::general::*;
-use axtask::current;
-use axhal::time::Duration;
-use axtask::TaskExtRef;
 
 bitflags! {
     #[derive(Debug, Clone, Copy)]
@@ -48,7 +52,7 @@ pub fn sys_poll(fds: UserPtr<Pollfd>, nfds: usize, timeout: i32) -> LinuxResult<
     }
 
     // 主要轮询逻辑
-    let ready_count = poll_files(&mut poll_fds, timeout)?;
+    let ready_count = poll_files(&mut poll_fds, timeout, None)?;
 
     // 将结果写回用户空间
     for (i, pfd) in poll_fds.iter().enumerate() {
@@ -58,167 +62,181 @@ pub fn sys_poll(fds: UserPtr<Pollfd>, nfds: usize, timeout: i32) -> LinuxResult<
     Ok(ready_count as isize)
 }
 
-fn poll_files(poll_fds: &mut [Pollfd], timeout: i32) -> LinuxResult<usize> {  
-    let mut ready_count;  
-      
-    // 第一次轮询检查  
-    ready_count = check_poll_fds(poll_fds);  
-    if ready_count > 0 || timeout == 0 {  
-        return Ok(ready_count);  
-    }  
-      
-    // 处理阻塞等待  
-    if timeout > 0 {  
-        // 使用等待队列实现真正的超时  
-        let curr = current();  
-        let wq = &curr.task_ext().process_data().child_exit_wq; // 或创建专门的poll等待队列  
-          
-        // 转换超时时间  
-        let timeout_duration = Duration::from_millis(timeout as u64);  
-          
-        // 带超时的等待  
-        let result = wq.wait_timeout(timeout_duration);  
-          
-        // 等待后重新检查  
-        ready_count = check_poll_fds(poll_fds);  
-          
-        if !result && ready_count == 0 {  
-            // 超时且没有就绪的文件描述符  
-            return Ok(0);  
-        }  
-    } else if timeout < 0 {  
-        // 无限等待  
-        loop {  
-            ready_count = check_poll_fds(poll_fds);  
-            if ready_count > 0 {  
-                break;  
-            }  
-            axtask::yield_now();  
-        }  
-    }  
-      
-    Ok(ready_count)  
+pub fn sys_ppoll(
+    fds: UserPtr<Pollfd>,
+    nfds: usize,
+    timeout: UserConstPtr<timespec>,
+    sigmask: UserConstPtr<SignalSet>,
+) -> LinuxResult<isize> {
+    // 参数验证
+    if nfds == 0 {
+        return Ok(0);
+    }
+
+    // 使用 get_as_mut_slice 获取整个 Pollfd 数组
+    let user_fds = fds.get_as_mut_slice(nfds)?;
+
+    // 复制到本地数组以便操作
+    let mut poll_fds = Vec::with_capacity(nfds);
+    for pfd in user_fds.iter() {
+        poll_fds.push(*pfd);
+    }
+
+    // 处理超时时间
+    let timeout_ms = if timeout.is_null() {
+        -1 // 无限等待
+    } else {
+        let ts = timeout.get_as_ref()?;
+        let duration = ts.to_time_value();
+        duration.as_millis() as i32
+    };
+
+    // 处理信号屏蔽
+    let old_sigmask = if sigmask.is_null() {
+        None
+    } else {
+        let new_mask = *sigmask.get_as_ref()?;
+        let curr = current();
+        let old_mask = curr
+            .task_ext()
+            .thread_data()
+            .signal
+            .with_blocked_mut(|blocked| {
+                let old = *blocked;
+                *blocked = new_mask;
+                old
+            });
+        Some(old_mask)
+    };
+
+    // 主要轮询逻辑
+    let ready_count = poll_files(&mut poll_fds, timeout_ms, old_sigmask)?;
+
+    // 恢复原始信号屏蔽
+    if let Some(old_mask) = old_sigmask {
+        let curr = current();
+        curr.task_ext()
+            .thread_data()
+            .signal
+            .with_blocked_mut(|blocked| {
+                *blocked = old_mask;
+            });
+    }
+
+    // 将结果写回用户空间
+    for (i, pfd) in poll_fds.iter().enumerate() {
+        user_fds[i] = *pfd;
+    }
+
+    Ok(ready_count as isize)
 }
 
-fn check_poll_fds(poll_fds: &mut [Pollfd]) -> usize {  
-    let mut ready_count = 0;  
-      
-    for pfd in poll_fds.iter_mut() {  
+fn poll_files(poll_fds: &mut [Pollfd], timeout: i32, _old_sigmask: Option<SignalSet>) -> LinuxResult<usize> {
+    // 第一次检查
+    let ready_count = check_poll_fds(poll_fds);
+    if ready_count > 0 || timeout == 0 {
+        return Ok(ready_count);
+    }
+    
+    if timeout > 0 {
+        // 带超时的等待
+        let start_time = axhal::time::monotonic_time();
+        let timeout_duration = Duration::from_millis(timeout as u64);
+        
+        loop {
+            // 检查文件状态
+            let ready_count = check_poll_fds(poll_fds);
+            if ready_count > 0 {
+                return Ok(ready_count);
+            }
+            
+            // 检查信号中断
+            if check_signal_interrupt()? {
+                return Err(axerrno::LinuxError::EINTR);
+            }
+            
+            // 检查超时
+            let elapsed = axhal::time::monotonic_time() - start_time;
+            if elapsed >= timeout_duration {
+                return Ok(0);
+            }
+            
+            // 短暂休眠后重试
+            axtask::yield_now();
+        }
+    } else {
+        // 无限等待 (timeout < 0)
+        loop {
+            let ready_count = check_poll_fds(poll_fds);
+            if ready_count > 0 {
+                return Ok(ready_count);
+            }
+            
+            // 检查信号中断
+            if check_signal_interrupt()? {
+                return Err(axerrno::LinuxError::EINTR);
+            }
+            
+            axtask::yield_now();
+        }
+    }
+}
+
+fn check_signal_interrupt() -> LinuxResult<bool> {
+    let curr = current();
+    let thr_data = curr.task_ext().thread_data();
+    
+    // 获取当前待处理信号和被阻塞的信号
+    let pending = thr_data.signal.pending();
+    let blocked = thr_data.signal.with_blocked_mut(|blocked| *blocked);
+    
+    // 检查是否有未被阻塞的待处理信号
+    let unblocked_pending = pending & !blocked;
+    
+    // 如果有未被阻塞的待处理信号，则应该被中断
+    let bits: u64 = unsafe { mem::transmute(unblocked_pending) };
+    Ok(bits != 0)
+}
+
+fn check_poll_fds(poll_fds: &mut [Pollfd]) -> usize {
+    let mut ready_count = 0;
+
+    for pfd in poll_fds.iter_mut() {
         pfd.revents = 0; // 清空返回事件  
-          
-        if pfd.fd < 0 {  
+
+        if pfd.fd < 0 {
             continue; // 忽略无效fd  
-        }  
-          
-        // 获取文件对象并调用poll方法  
-        match get_file_like(pfd.fd) {  
-            Ok(file) => {  
-                match file.poll() {  
-                    Ok(state) => {  
-                        // 将PollState转换为poll事件  
-                        if state.readable && (pfd.events & POLLIN as i16) != 0 {  
-                            pfd.revents |= POLLIN as i16;  
-                        }  
-                        if state.writable && (pfd.events & POLLOUT as i16) != 0 {  
-                            pfd.revents |= POLLOUT as i16;  
-                        }  
-                          
-                        if pfd.revents != 0 {  
-                            ready_count += 1;  
-                        }  
-                    }  
-                    Err(_) => {  
-                        pfd.revents |= POLLERR as i16;  
-                        ready_count += 1;  
-                    }  
-                }  
-            }  
-            Err(_) => {  
-                pfd.revents |= POLLNVAL as i16;  
-                ready_count += 1;  
-            }  
-        }  
-    }  
-      
-    ready_count  
+        }
+
+        // 获取文件对象并调用poll方法
+        match get_file_like(pfd.fd) {
+            Ok(file) => {
+                match file.poll() {
+                    Ok(state) => {
+                        // 将PollState转换为poll事件
+                        if state.readable && (pfd.events & POLLIN as i16) != 0 {
+                            pfd.revents |= POLLIN as i16;
+                        }
+                        if state.writable && (pfd.events & POLLOUT as i16) != 0 {
+                            pfd.revents |= POLLOUT as i16;
+                        }
+
+                        if pfd.revents != 0 {
+                            ready_count += 1;
+                        }
+                    }
+                    Err(_) => {
+                        pfd.revents |= POLLERR as i16;
+                        ready_count += 1;
+                    }
+                }
+            }
+            Err(_) => {
+                pfd.revents |= POLLNVAL as i16;
+                ready_count += 1;
+            }
+        }
+    }
+
+    ready_count
 }
-
-// fn poll_files(poll_fds: &mut [Pollfd], timeout: i32) -> LinuxResult<usize> {
-//     let mut ready_count = 0;
-
-//     // 第一次轮询：检查所有文件描述符状态
-//     for pfd in poll_fds.iter_mut() {
-//         pfd.revents = 0; // 清空返回事件  
-
-//         if pfd.fd < 0 {
-//             continue; // 忽略无效fd  
-//         }
-
-//         // 获取文件对象并调用poll方法
-//         match get_file_like(pfd.fd) {
-//             Ok(file) => {
-//                 match file.poll() {
-//                     Ok(state) => {
-//                         // 将PollState转换为poll事件
-//                         if state.readable && (pfd.events & POLLIN as i16) != 0 {
-//                             pfd.revents |= POLLIN as i16;
-//                         }
-//                         if state.writable && (pfd.events & POLLOUT as i16) != 0 {
-//                             pfd.revents |= POLLOUT as i16;
-//                         }
-
-//                         if pfd.revents != 0 {
-//                             ready_count += 1;
-//                         }
-//                     }
-//                     Err(_) => {
-//                         pfd.revents |= POLLERR as i16;
-//                         ready_count += 1;
-//                     }
-//                 }
-//             }
-//             Err(_) => {
-//                 pfd.revents |= POLLNVAL as i16;
-//                 ready_count += 1;
-//             }
-//         }
-//     }
-
-//     // 如果有就绪的文件描述符或超时为0，直接返回
-//     if ready_count > 0 || timeout == 0 {
-//         return Ok(ready_count);
-//     }
-
-//     // 处理阻塞等待（简化实现）
-//     if timeout > 0 {
-//         // TODO: 实现真正的超时等待机制
-//         // 目前简化为yield一次后重新检查
-//         axtask::yield_now();
-
-//         // 重新检查一次
-//         ready_count = 0;
-//         for pfd in poll_fds.iter_mut() {
-//             if pfd.fd < 0 {
-//                 continue;
-//             }
-
-//             if let Ok(file) = get_file_like(pfd.fd) {
-//                 if let Ok(state) = file.poll() {
-//                     pfd.revents = 0;
-//                     if state.readable && (pfd.events & POLLIN as i16) != 0 {
-//                         pfd.revents |= POLLIN as i16;
-//                     }
-//                     if state.writable && (pfd.events & POLLOUT as i16) != 0 {
-//                         pfd.revents |= POLLOUT as i16;
-//                     }
-
-//                     if pfd.revents != 0 {
-//                         ready_count += 1;
-//                     }
-//                 }
-//             }
-//         }
-//     }
-
-//     Ok(ready_count)
-// }

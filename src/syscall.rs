@@ -4,7 +4,7 @@ use axhal::{
     trap::{SYSCALL, register_trap_handler},
 };
 use starry_api::*;
-use starry_core::{task::{time_stat_from_kernel_to_user, time_stat_from_user_to_kernel}};
+use starry_core::task::{time_stat_from_kernel_to_user, time_stat_from_user_to_kernel};
 use syscalls::Sysno;
 
 #[register_trap_handler(SYSCALL)]
@@ -54,6 +54,7 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         Sysno::write => sys_write(tf.arg0() as _, tf.arg1().into(), tf.arg2() as _),
         Sysno::writev => sys_writev(tf.arg0() as _, tf.arg1().into(), tf.arg2() as _),
         Sysno::lseek => sys_lseek(tf.arg0() as _, tf.arg1() as _, tf.arg2() as _),
+        Sysno::ftruncate => sys_ftruncate(tf.arg0() as _, tf.arg1() as _),
 
         // fs mount
         Sysno::mount => sys_mount(
@@ -201,8 +202,21 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         Sysno::times => sys_times(tf.arg0().into()),
         Sysno::clock_gettime => sys_clock_gettime(tf.arg0() as _, tf.arg1().into()),
 
-        // poll
-        Sysno::ppoll => sys_poll(tf.arg0().into(), tf.arg1() as _, tf.arg2() as _),
+        // I/O multiplexing
+        Sysno::ppoll => sys_ppoll(
+            tf.arg0().into(),
+            tf.arg1() as _,
+            tf.arg2().into(),
+            tf.arg3().into(),
+        ),
+        Sysno::pselect6 => sys_pselect6(
+            tf.arg0() as _,
+            tf.arg1().into(),
+            tf.arg2().into(),
+            tf.arg3().into(),
+            tf.arg4().into(),
+            tf.arg5().into(),
+        ),
 
         // shm
         Sysno::shmget => sys_shmget(tf.arg0() as _, tf.arg1() as _, tf.arg2() as _),
