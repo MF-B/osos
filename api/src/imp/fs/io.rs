@@ -113,20 +113,12 @@ pub fn sys_lseek(fd: c_int, offset: __kernel_off_t, whence: c_int) -> LinuxResul
 
 pub fn sys_ftruncate(fd: c_int, length: __kernel_off_t) -> LinuxResult<isize> {
     debug!("sys_ftruncate <= {} {}", fd, length);
-    let file = get_file_like(fd)?;
-    // 检查 length 是否为负数
+    let file = File::from_fd(fd)?;
     if length < 0 {
         return Err(LinuxError::EINVAL);
     }
-    // 调用文件的 truncate 方法来截断文件
-    if let Ok(file_obj) = file.into_any().downcast::<File>() {
-        file_obj.inner().truncate(length as _)?;
-        Ok(0)
-    } else {
-        // 对于其他类型的文件描述符（如管道、socket等），可能不支持截断
-        error!("File descriptor {} does not support ftruncate", fd);
-        Err(LinuxError::EINVAL)
-    }
+    file.inner().truncate(length as _)?;
+    Ok(0)
 }
 
 /// Synchronize a file's in-core state with storage device
@@ -134,8 +126,10 @@ pub fn sys_ftruncate(fd: c_int, length: __kernel_off_t) -> LinuxResult<isize> {
 /// fsync() transfers ("flushes") all modified in-core data of the file 
 /// referred to by the file descriptor fd to the disk device
 pub fn sys_fsync(fd: c_int) -> LinuxResult<isize> {
-    debug!("sys_fsync <= fd: {}", fd);
-    
+    error!("sys_fsync <= fd: {}", fd);
+    let file = File::from_fd(fd)?;
+    // 调用文件的同步方法
+    file.inner().flush()?;
     Ok(0)
 }
 
