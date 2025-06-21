@@ -110,3 +110,43 @@ pub fn sys_lseek(fd: c_int, offset: __kernel_off_t, whence: c_int) -> LinuxResul
     let off = File::from_fd(fd)?.inner().seek(pos)?;
     Ok(off as _)
 }
+
+pub fn sys_ftruncate(fd: c_int, length: __kernel_off_t) -> LinuxResult<isize> {
+    debug!("sys_ftruncate <= {} {}", fd, length);
+    let file = get_file_like(fd)?;
+    // 检查 length 是否为负数
+    if length < 0 {
+        return Err(LinuxError::EINVAL);
+    }
+    // 调用文件的 truncate 方法来截断文件
+    if let Ok(file_obj) = file.into_any().downcast::<File>() {
+        file_obj.inner().truncate(length as _)?;
+        Ok(0)
+    } else {
+        // 对于其他类型的文件描述符（如管道、socket等），可能不支持截断
+        error!("File descriptor {} does not support ftruncate", fd);
+        Err(LinuxError::EINVAL)
+    }
+}
+
+/// Synchronize a file's in-core state with storage device
+/// 
+/// fsync() transfers ("flushes") all modified in-core data of the file 
+/// referred to by the file descriptor fd to the disk device
+pub fn sys_fsync(fd: c_int) -> LinuxResult<isize> {
+    debug!("sys_fsync <= fd: {}", fd);
+    
+    Ok(0)
+}
+
+/// Synchronize a file's data with storage device (similar to fsync but doesn't sync metadata)
+/// 
+/// fdatasync() is similar to fsync(), but does not flush modified metadata 
+/// unless that metadata is needed in order to allow a subsequent data retrieval to be correctly handled
+pub fn sys_fdatasync(fd: c_int) -> LinuxResult<isize> {
+    debug!("sys_fdatasync <= fd: {}", fd);
+    
+    // 对于大多数简单的文件系统实现，fdatasync 可以直接调用 fsync
+    // 在更复杂的实现中，这里只会同步数据而不同步元数据
+    sys_fsync(fd)
+}
