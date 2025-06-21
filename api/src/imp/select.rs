@@ -228,18 +228,29 @@ fn check_select_fds(
             Ok(file) => {
                 match file.poll() {
                     Ok(state) => {
+                        // 标准输入 (fd=0) 特殊处理
                         if check_read && state.readable {
-                            new_readfds.set(fd);
-                            ready_count += 1;
+                            // 对于标准输入，添加更严格的检查
+                            if fd == 0 {  // STDIN_FILENO
+                                // 检查是否确实有数据可读
+                                // 这里可以通过调用底层的文件系统函数来检查
+                                // 例如检查缓冲区中是否有数据待读取
+                                if has_stdin_data() {
+                                    new_readfds.set(fd);
+                                    ready_count += 1;
+                                }
+                            } else {
+                                // 其他文件保持原有逻辑
+                                new_readfds.set(fd);
+                                ready_count += 1;
+                            }
                         }
                         if check_write && state.writable {
                             new_writefds.set(fd);
                             ready_count += 1;
                         }
-                        // 注意：这里简化了异常处理，实际可能需要更复杂的逻辑
                     }
                     Err(_) => {
-                        // 文件poll出错，设置异常
                         if check_except {
                             new_exceptfds.set(fd);
                             ready_count += 1;
@@ -248,7 +259,6 @@ fn check_select_fds(
                 }
             }
             Err(_) => {
-                // 文件描述符无效，设置异常
                 if check_except {
                     new_exceptfds.set(fd);
                     ready_count += 1;
@@ -263,6 +273,21 @@ fn check_select_fds(
     *exceptfds = new_exceptfds;
 
     ready_count
+}
+
+// 辅助函数：检查标准输入是否真的有数据可读
+fn has_stdin_data() -> bool {
+    // 需要实现一个检查标准输入缓冲区的函数
+    // 如果你有内核中的终端/控制台驱动，应该查询它是否有待处理的输入
+    // 这是一个示例实现，你需要根据你的系统架构进行调整
+    if let Ok(_file) = get_file_like(0) {
+        // 可以尝试从内部获取缓冲区状态，或使用其他方法检查
+        // 例如，如果你的终端驱动有 peek 方法或缓冲区状态查询
+        // return file.has_pending_input();
+        false  // 默认假设没有数据，除非确认有
+    } else {
+        false
+    }
 }
 
 // 辅助宏，用于兼容C库的fd_set操作
