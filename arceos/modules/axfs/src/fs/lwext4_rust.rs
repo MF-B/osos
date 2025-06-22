@@ -37,16 +37,6 @@ impl Ext4FileSystem {
         let inner =
             Ext4BlockWrapper::<Disk>::new(disk).expect("failed to initialize EXT4 filesystem");
         let root = Arc::new(FileWrapper::new("/", InodeTypes::EXT4_DE_DIR));
-        // 确保使用写透模式  
-        unsafe {
-
-            use lwext4_rust::bindings::ext4_cache_write_back;
-
-            let path = root.0.lock().get_path();
-  
-            ext4_cache_write_back(path.as_ptr(), true);
-            error!("启用写透模式");  
-        }
         Self { inner, root }
     }
 }
@@ -333,17 +323,6 @@ impl VfsNodeOps for FileWrapper {
 
     fn as_any(&self) -> &dyn core::any::Any {
         self as &dyn core::any::Any
-    }
-
-    fn fsync(&self) -> VfsResult {
-        let mut file = self.0.lock();
-        
-        error!("fsync called");
-
-        // 执行刷新操作 - 使用 file_cache_flush 方法
-        file.file_cache_flush()
-            .map(|_v| ())
-            .map_err(|e| e.try_into().unwrap())
     }
 }
 
