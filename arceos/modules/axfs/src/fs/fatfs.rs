@@ -96,6 +96,14 @@ impl<IO: IoTrait> VfsNodeOps for FileWrapper<'static, IO> {
         file.seek(SeekFrom::Start(size)).map_err(as_vfs_err)?; // TODO: more efficient
         file.truncate().map_err(as_vfs_err)
     }
+
+    fn fsync(&self) -> VfsResult {
+        error!("fsync at fatfs");
+        // 获取文件锁
+        let mut file = self.0.lock();
+        // 调用底层文件系统的flush实现来确保数据写入磁盘
+        file.flush().map_err(as_vfs_err)
+    }
 }
 
 impl<IO: IoTrait> VfsNodeOps for DirWrapper<'static, IO> {

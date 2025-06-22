@@ -37,6 +37,16 @@ impl Ext4FileSystem {
         let inner =
             Ext4BlockWrapper::<Disk>::new(disk).expect("failed to initialize EXT4 filesystem");
         let root = Arc::new(FileWrapper::new("/", InodeTypes::EXT4_DE_DIR));
+        // 确保使用写透模式  
+        unsafe {
+
+            use lwext4_rust::bindings::ext4_cache_write_back;
+
+            let path = root.0.lock().get_path();
+  
+            ext4_cache_write_back(path.as_ptr(), true);
+            error!("启用写透模式");  
+        }
         Self { inner, root }
     }
 }
