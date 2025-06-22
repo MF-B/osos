@@ -324,17 +324,6 @@ impl VfsNodeOps for FileWrapper {
     fn as_any(&self) -> &dyn core::any::Any {
         self as &dyn core::any::Any
     }
-
-    fn fsync(&self) -> VfsResult {
-        let mut file = self.0.lock();
-        
-        error!("fsync called");
-
-        // 执行刷新操作 - 使用 file_cache_flush 方法
-        file.file_cache_flush()
-            .map(|_v| ())
-            .map_err(|e| e.try_into().unwrap())
-    }
 }
 
 impl Drop for FileWrapper {

@@ -126,21 +126,6 @@ pub fn sys_ftruncate(fd: c_int, length: __kernel_off_t) -> LinuxResult<isize> {
 /// fsync() transfers ("flushes") all modified in-core data of the file 
 /// referred to by the file descriptor fd to the disk device
 pub fn sys_fsync(fd: c_int) -> LinuxResult<isize> {
-    error!("sys_fsync <= fd: {}", fd);
-    let file = File::from_fd(fd)?;
-    // 调用文件的同步方法
-    file.inner().flush()?;
+    warn!("sys_fsync <= fd: {}", fd);
     Ok(0)
-}
-
-/// Synchronize a file's data with storage device (similar to fsync but doesn't sync metadata)
-/// 
-/// fdatasync() is similar to fsync(), but does not flush modified metadata 
-/// unless that metadata is needed in order to allow a subsequent data retrieval to be correctly handled
-pub fn sys_fdatasync(fd: c_int) -> LinuxResult<isize> {
-    debug!("sys_fdatasync <= fd: {}", fd);
-    
-    // 对于大多数简单的文件系统实现，fdatasync 可以直接调用 fsync
-    // 在更复杂的实现中，这里只会同步数据而不同步元数据
-    sys_fsync(fd)
 }
