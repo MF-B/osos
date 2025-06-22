@@ -16,7 +16,7 @@
 
 # TODO
 # glibc iozone测例
-/musl/busybox sh /glibc/iozone_testcode.sh
+# /musl/busybox sh /glibc/iozone_testcode.sh
 # musl iozone测例
 /musl/busybox sh /musl/iozone_testcode.sh
 

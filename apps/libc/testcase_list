@@ -2,4 +2,6 @@
 # sleep_c
 # signal_c
 # shm_c
-poll_c
+# poll_c
+# select_c
+fsync_c
