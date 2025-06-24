@@ -135,7 +135,7 @@ pub fn sys_mmap(
 
     if populate {
         let file = File::from_fd(fd)?;
-        let file = file.inner();
+        let file = file.get_inner();
         let file_size = file.get_attr()?.size() as usize;
         if offset < 0 || offset as usize >= file_size {
             return Err(LinuxError::EINVAL);

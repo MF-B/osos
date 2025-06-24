@@ -29,22 +29,22 @@ impl File {
     }
 
     /// Get the inner node of the file.
-    pub fn inner(&self) -> MutexGuard<axfs::fops::File> {
+    pub fn get_inner(&self) -> MutexGuard<axfs::fops::File> {
         self.inner.lock()
     }
 }
 
 impl FileLike for File {
     fn read(&self, buf: &mut [u8]) -> LinuxResult<usize> {
-        Ok(self.inner().read(buf)?)
+        Ok(self.get_inner().read(buf)?)
     }
 
     fn write(&self, buf: &[u8]) -> LinuxResult<usize> {
-        Ok(self.inner().write(buf)?)
+        Ok(self.get_inner().write(buf)?)
     }
 
     fn stat(&self) -> LinuxResult<Kstat> {
-        let metadata = self.inner().get_attr()?;
+        let metadata = self.get_inner().get_attr()?;
         let ty = metadata.file_type() as u8;
         let perm = metadata.perm().bits() as u32;
 
@@ -95,7 +95,7 @@ impl Directory {
     }
 
     /// Get the inner node of the directory.
-    pub fn inner(&self) -> MutexGuard<axfs::fops::Directory> {
+    pub fn get_inner(&self) -> MutexGuard<axfs::fops::Directory> {
         self.inner.lock()
     }
 

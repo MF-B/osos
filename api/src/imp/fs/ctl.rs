@@ -146,7 +146,7 @@ pub fn sys_getdents64(fd: i32, buf: UserPtr<u8>, len: usize) -> LinuxResult<isiz
         }
     }
 
-    let mut inner = dir.inner();
+    let mut inner = dir.get_inner();
     loop {
         let mut dirents = [DirEntry::default()];
         let cnt = inner.read_dir(&mut dirents)?;

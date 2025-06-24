@@ -107,7 +107,7 @@ pub fn sys_lseek(fd: c_int, offset: __kernel_off_t, whence: c_int) -> LinuxResul
         2 => SeekFrom::End(offset as _),
         _ => return Err(LinuxError::EINVAL),
     };
-    let off = File::from_fd(fd)?.inner().seek(pos)?;
+    let off = File::from_fd(fd)?.get_inner().seek(pos)?;
     Ok(off as _)
 }
 
@@ -117,7 +117,7 @@ pub fn sys_ftruncate(fd: c_int, length: __kernel_off_t) -> LinuxResult<isize> {
     if length < 0 {
         return Err(LinuxError::EINVAL);
     }
-    file.inner().truncate(length as _)?;
+    file.get_inner().truncate(length as _)?;
     Ok(0)
 }
 

@@ -76,7 +76,7 @@ pub fn sys_openat(
     if !opts.has_directory() {
         match dir.as_ref().map_or_else(
             || axfs::fops::File::open(path, &opts),
-            |dir| dir.inner().open_file_at(path, &opts),
+            |dir| dir.get_inner().open_file_at(path, &opts),
         ) {
             Err(AxError::IsADirectory) => {}
             r => {
@@ -89,7 +89,7 @@ pub fn sys_openat(
     let fd = Directory::new(
         dir.map_or_else(
             || axfs::fops::Directory::open_dir(path, &opts),
-            |dir| dir.inner().open_dir_at(path, &opts),
+            |dir| dir.get_inner().open_dir_at(path, &opts),
         )?,
         real_path.to_string(),
     )
