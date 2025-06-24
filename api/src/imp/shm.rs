@@ -3,12 +3,11 @@ use alloc::{collections::BTreeMap, sync::Arc};
 use axerrno::{LinuxError, LinuxResult};
 use axhal::{
     mem::{PhysAddr, VirtAddr},
-    paging::{MappingFlags, PageSize, PagingHandlerImpl},
+    paging::{MappingFlags, PageSize},
 };
 use axtask::TaskExtRef;
 use axtask::current;
 use memory_addr::{MemoryAddr, VirtAddrRange};
-use page_table_multiarch::PagingHandler;
 use spin::{Mutex, RwLock};
 
 /// IPC flags
@@ -25,6 +24,7 @@ pub const IPC_STAT: i32 = 2;
 pub const SHM_RDONLY: i32 = 0o010000;
 pub const SHM_RND: i32 = 0o020000;
 pub const SHM_REMAP: i32 = 0o040000;
+pub const SHM_EXEC: i32 = 0o100000;
 
 /// Shared memory segment identifier
 pub type ShmId = i32;
@@ -221,63 +221,37 @@ pub fn sys_shmat(shmid: ShmId, shmaddr: usize, shmflg: i32) -> LinuxResult<isize
     };
 
     // 设置映射权限
-    let mut mapping_flags = MappingFlags::USER;
+    let mut mapping_flags = MappingFlags::USER | MappingFlags::READ;
     if want_write {
         mapping_flags |= MappingFlags::WRITE;
     }
-    mapping_flags |= MappingFlags::READ;
-
-    let paddr = segment.phys_addr;
+    if !(shmflg & SHM_EXEC == 0) {
+        mapping_flags |= MappingFlags::EXECUTE;
+    }
 
     drop(segment); // 释放读锁
     drop(manager); // 释放管理器锁
 
-    let need_allocate = paddr.as_usize() == 0;
-
-    let result = if need_allocate {
-        // 第一次映射，需要分配物理内存
-        // 映射共享内存到地址空间
-        let phys_addr = if let Some(alloc_paddr) = PagingHandlerImpl::alloc_frame() {
-            alloc_paddr
-        } else {
-            PhysAddr::from(0)
-        };
-
+    let phys_addr = {
         let mut segment = segment_arc.write();
-        let map_result = aspace.map_linear(
-            attach_addr,
-            phys_addr,
-            aligned_length,
-            mapping_flags,
-            PageSize::Size4K,
-        );
-
-        // 如果映射成功，更新segment的物理地址
-        if map_result.is_ok() {
-            // 获取映射后的物理地址
-            if let Ok(pt_result) = aspace.page_table().query(attach_addr) {
-                let phys_addr = pt_result.0;
-                segment.phys_addr = phys_addr;
-
-                drop(segment);
+        if segment.phys_addr.as_usize() == 0 {
+            // 第一次映射，分配物理内存
+            if let Ok(pa) = aspace.alloc_shared(aligned_length, PageSize::Size4K) {
+                segment.phys_addr = pa;
             } else {
-                // 如果查询物理地址失败，应该取消映射
-                let _ = aspace.unmap(attach_addr, aligned_length);
                 return Err(LinuxError::ENOMEM);
             }
         }
-
-        map_result
-    } else {
-        // 物理内存已分配，直接映射到指定物理地址
-        aspace.map_linear(
-            attach_addr,
-            paddr,
-            aligned_length,
-            mapping_flags,
-            PageSize::Size4K,
-        )
+        segment.phys_addr
     };
+
+    let result = aspace.map_linear(
+        attach_addr,
+        phys_addr,
+        aligned_length,
+        mapping_flags,
+        PageSize::Size4K,
+    );
 
     if result.is_err() {
         return Err(LinuxError::ENOMEM);

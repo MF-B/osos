@@ -1,7 +1,7 @@
 use core::fmt;
 
 use axerrno::{AxError, AxResult, ax_err};
-use axhal::mem::phys_to_virt;
+use axhal::mem::{phys_to_virt, virt_to_phys};
 use axhal::paging::{MappingFlags, PageTable, PagingError};
 use memory_addr::{
     MemoryAddr, PAGE_SIZE_4K, PageIter4K, PhysAddr, VirtAddr, VirtAddrRange, is_aligned,
@@ -219,6 +219,34 @@ impl AddrSpace {
             .map(area, &mut self.pt, false)
             .map_err(mapping_err_to_ax_err)?;
         Ok(())
+    }
+
+    /// Add a new allocation mapping.
+    ///
+    /// See [`Backend`] for more details about the mapping backends.
+    ///
+    /// The `flags` parameter indicates the mapping permissions and attributes.
+    ///
+    /// Returns an error if the address range is out of the address space or not
+    /// aligned.
+    pub fn alloc_shared(
+        &mut self,
+        size: usize,
+        align: PageSize,
+    ) -> AxResult<PhysAddr> {
+        let allocator = axalloc::global_allocator();
+        let page_size = if align == PageSize::Size4K {
+            PAGE_SIZE_4K
+        } else {
+            return ax_err!(InvalidInput, "unsupported page size");
+        };
+        let page_count = size / page_size;
+        // TODO: more error checking
+        let vaddr = allocator
+            .alloc_pages(page_count, PAGE_SIZE_4K)
+            .map_err(|_| AxError::NoMemory)?;
+        let paddr = virt_to_phys(vaddr.into());
+        Ok(paddr)
     }
 
     /// Populates the area with physical frames, returning false if the area
