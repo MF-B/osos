@@ -115,6 +115,22 @@ pub fn sys_pwrite64(fd: i32, buf: UserConstPtr<u8>, len: usize, offset: i64) -> 
     Ok(written as isize)  
 }
 
+pub fn sys_pread64(fd: i32, buf: UserPtr<u8>, len: usize, offset: i64) -> LinuxResult<isize> {  
+    let buf = buf.get_as_mut_slice(len)?;  
+    debug!(  
+        "sys_pread64 <= fd: {}, buf: {:p}, len: {}, offset: {}",  
+        fd, buf.as_ptr(), buf.len(), offset  
+    );  
+      
+    if offset < 0 {  
+        return Err(LinuxError::EINVAL);  
+    }  
+      
+    let file = File::from_fd(fd)?;  
+    let read = file.get_inner().read_at(offset as u64, buf)?;  
+    Ok(read as isize)  
+}
+
 pub fn sys_lseek(fd: c_int, offset: __kernel_off_t, whence: c_int) -> LinuxResult<isize> {
     debug!("sys_lseek <= {} {} {}", fd, offset, whence);
     let pos = match whence {
