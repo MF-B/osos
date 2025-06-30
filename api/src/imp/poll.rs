@@ -66,7 +66,7 @@ pub fn sys_ppoll(
     fds: UserPtr<Pollfd>,
     nfds: usize,
     timeout: UserConstPtr<timespec>,
-    sigmask: UserConstPtr<SignalSet>,
+    _sigmask: UserConstPtr<SignalSet>,
 ) -> LinuxResult<isize> {
     // 参数验证
     if nfds == 0 {
@@ -84,44 +84,15 @@ pub fn sys_ppoll(
 
     // 处理超时时间
     let timeout_ms = if timeout.is_null() {
-        -1 // 无限等待
+        0 // 如果 timeout 为空，则设置为 0，表示不等待
     } else {
         let ts = timeout.get_as_ref()?;
         let duration = ts.to_time_value();
         duration.as_millis() as i32
     };
 
-    // 处理信号屏蔽
-    let old_sigmask = if sigmask.is_null() {
-        None
-    } else {
-        let new_mask = *sigmask.get_as_ref()?;
-        let curr = current();
-        let old_mask = curr
-            .task_ext()
-            .thread_data()
-            .signal
-            .with_blocked_mut(|blocked| {
-                let old = *blocked;
-                *blocked = new_mask;
-                old
-            });
-        Some(old_mask)
-    };
-
     // 主要轮询逻辑
-    let ready_count = poll_files(&mut poll_fds, timeout_ms, old_sigmask)?;
-
-    // 恢复原始信号屏蔽
-    if let Some(old_mask) = old_sigmask {
-        let curr = current();
-        curr.task_ext()
-            .thread_data()
-            .signal
-            .with_blocked_mut(|blocked| {
-                *blocked = old_mask;
-            });
-    }
+    let ready_count = poll_files(&mut poll_fds, timeout_ms, None)?;
 
     // 将结果写回用户空间
     for (i, pfd) in poll_fds.iter().enumerate() {

@@ -128,21 +128,13 @@ pub fn load_user_app(
             .chain(args.iter().cloned())
             .collect();
 
-        // 添加解释器路径映射
         if let Some(interpreter) = new_args.first() {
             match interpreter.as_str() {
-                "/bin/sh" | "/bin/bash" => {
-                    new_args[0] = "/musl/busybox".to_string();
-                    new_args.insert(1, "sh".to_string());
-                }
-                "/bin/busybox" => {
-                    new_args[0] = "/musl/busybox".to_string();
-                }
-                // path if path.starts_with("/bin/") => {
-                //     let command = path.strip_prefix("/bin/").unwrap().to_string();
-                //     new_args[0] = "/musl/busybox".to_string();
-                //     new_args.insert(1, command);
-                // },
+                path if path.starts_with("/bin/") => {  
+                    let command = path.strip_prefix("/bin/").unwrap().to_string();  
+                    new_args[0] = "/musl/busybox".to_string();  
+                    new_args.insert(1, command);  
+                },
                 _ => {}
             }
         }

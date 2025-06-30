@@ -10,7 +10,7 @@ use syscalls::Sysno;
 #[register_trap_handler(SYSCALL)]
 fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
     let sysno = Sysno::from(syscall_num as u32);
-//    info!("Syscall {}", sysno);
+    info!("Syscall {}", sysno);
     time_stat_from_user_to_kernel();
     let result = match sysno {
         // fs ctl
@@ -217,18 +217,33 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         Sysno::clock_gettime => sys_clock_gettime(tf.arg0() as _, tf.arg1().into()),
 
         // I/O multiplexing
+        #[cfg(target_arch = "x86_64")]
+        Sysno::poll => sys_poll(
+            tf.arg0().into(),
+            tf.arg1() as _,
+            tf.arg2() as _,
+        ),
         Sysno::ppoll => sys_ppoll(
             tf.arg0().into(),
             tf.arg1() as _,
             tf.arg2().into(),
             tf.arg3().into(),
         ),
-        Sysno::pselect6 => sys_select(
+        #[cfg(target_arch = "x86_64")]
+        Sysno::select => sys_select(
             tf.arg0() as _,
             tf.arg1().into(),
             tf.arg2().into(),
             tf.arg3().into(),
             tf.arg4().into(),
+        ),
+        Sysno::pselect6 => sys_pselect6(
+            tf.arg0() as _,
+            tf.arg1().into(),
+            tf.arg2().into(),
+            tf.arg3().into(),
+            tf.arg4().into(),
+            tf.arg5().into(),
         ),
 
         // shm
@@ -236,6 +251,10 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         Sysno::shmat => sys_shmat(tf.arg0() as _, tf.arg1() as _, tf.arg2() as _),
         Sysno::shmctl => sys_shmctl(tf.arg0() as _, tf.arg1() as _, tf.arg2().into()),
         Sysno::shmdt => sys_shmdt(tf.arg0() as _),
+
+        // rusage
+        Sysno::getrusage => sys_getrusage(tf.arg0() as _, tf.arg1().into()),
+        
         _ => {
             error!("Unimplemented syscall: {}", sysno);
             Err(LinuxError::ENOSYS)
@@ -243,6 +262,6 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
     };
     let ans = result.unwrap_or_else(|err| -err.code() as _);
     time_stat_from_kernel_to_user();
-//    info!("Syscall {:?} return {}", sysno, ans);
+    info!("Syscall {:?} return {}", sysno, ans);
     ans
 }

@@ -3,7 +3,7 @@
 use core::{
     alloc::Layout,
     cell::RefCell,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::atomic::{AtomicIsize, AtomicUsize, Ordering},
     time::Duration,
 };
 
@@ -63,6 +63,10 @@ pub struct TaskExt {
     pub time: RefCell<TimeStat>,
     /// The thread
     pub thread: Arc<Thread>,
+    /// Page fault statistics
+    pub minflt: AtomicIsize,
+    /// Page fault statistics
+    pub majflt: AtomicIsize,
 }
 
 impl TaskExt {
@@ -71,6 +75,8 @@ impl TaskExt {
         Self {
             time: RefCell::new(TimeStat::new()),
             thread,
+            minflt: AtomicIsize::new(0),
+            majflt: AtomicIsize::new(0),
         }
     }
 
