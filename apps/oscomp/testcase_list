@@ -1,12 +1,12 @@
 # glibc basic测例
-# /musl/busybox sh /glibc/basic_testcode.sh
+/musl/busybox sh /glibc/basic_testcode.sh
 # musl basic测例
-# /musl/busybox sh /musl/basic_testcode.sh
+/musl/busybox sh /musl/basic_testcode.sh
 
 # glibc busybox测例
-# /musl/busybox sh /glibc/busybox_testcode.sh
+/musl/busybox sh /glibc/busybox_testcode.sh
 # musl busybox测例
-# /musl/busybox sh /musl/busybox_testcode.sh
+/musl/busybox sh /musl/busybox_testcode.sh
 
 # TODO
 # glibc cyclictest测例
@@ -19,23 +19,6 @@
 /musl/busybox sh /glibc/iozone_testcode.sh
 # musl iozone测例
 /musl/busybox sh /musl/iozone_testcode.sh
-# ./busybox echo "#### OS COMP TEST GROUP START iozone-musl ####"
-# ./busybox echo iozone automatic measurements
-# /musl/iozone -a -r 1k -s 4m
-# ./busybox echo iozone throughput write/read measurements
-# ./busybox echo iozone throughput random-read measurements
-# ./iozone -t 4 -i 0 -i 2 -r 1k -s 1m
-# ./busybox echo iozone throughput read-backwards measurements
-# ./iozone -t 4 -i 0 -i 3 -r 1k -s 1m
-# ./busybox echo iozone throughput stride-read measurements
-# ./iozone -t 4 -i 0 -i 5 -r 1k -s 1m
-# ./busybox echo iozone throughput fwrite/fread measurements
-# ./iozone -t 4 -i 6 -i 7 -r 1k -s 1m
-# ./busybox echo iozone throughput pwrite/pread measurements
-# ./iozone -t 4 -i 9 -i 10 -r 1k -s 1m
-# ./busybox echo iozone throughtput pwritev/preadv measurements
-# ./iozone -t 4 -i 11 -i 12 -r 1k -s 1m
-# ./busybox echo "#### OS COMP TEST GROUP END iozone-musl ####"
 
 # TODO
 # glibc iperf测例
@@ -51,15 +34,15 @@
 
 # TODO
 # glibc libctest测例
-# /musl/busybox echo "#### OS COMP TEST GROUP START libctest-glibc ####"  
-# /musl/busybox sh /glibc/run-static.sh  
-# /musl/busybox sh /glibc/run-dynamic.sh
-# /musl/busybox echo "#### OS COMP TEST GROUP END libctest-glibc ####"
+/musl/busybox echo "#### OS COMP TEST GROUP START libctest-glibc ####"  
+/musl/busybox sh /glibc/run-static.sh  
+/musl/busybox sh /glibc/run-dynamic.sh
+/musl/busybox echo "#### OS COMP TEST GROUP END libctest-glibc ####"
 # musl libctest测例
-# /musl/busybox echo "#### OS COMP TEST GROUP START libctest-musl ####"
-# /musl/busybox sh /musl/run-static.sh
-# /musl/busybox sh /musl/run-dynamic.sh
-# /musl/busybox echo "#### OS COMP TEST GROUP END libctest-musl ####"
+/musl/busybox echo "#### OS COMP TEST GROUP START libctest-musl ####"
+/musl/busybox sh /musl/run-static.sh
+/musl/busybox sh /musl/run-dynamic.sh
+/musl/busybox echo "#### OS COMP TEST GROUP END libctest-musl ####"
 
 
 # TODO
@@ -76,9 +59,9 @@
 
 # TODO
 # glibc lua测例
-# /musl/busybox sh /glibc/lua_testcode.sh
+/musl/busybox sh /glibc/lua_testcode.sh
 # musl lua测例
-# /musl/busybox sh /musl/lua_testcode.sh
+/musl/busybox sh /musl/lua_testcode.sh
 
 # TODO
 # glibc netperf测例
