@@ -8,5 +8,6 @@ mod time;
 mod poll;
 mod select;
 mod shm;
+mod rusage;
 
-pub use self::{fs::*, futex::*, mm::*, signal::*, sys::*, task::*, time::*, poll::*, select::*, shm::*};
+pub use self::{fs::*, futex::*, mm::*, signal::*, sys::*, task::*, time::*, poll::*, select::*, shm::*, rusage::*};
