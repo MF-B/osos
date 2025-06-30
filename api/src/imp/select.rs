@@ -5,7 +5,6 @@ use crate::time::TimeValueLike;
 use axerrno::LinuxError;
 use axerrno::LinuxResult;
 use axhal::time::wall_time;
-use axsignal::SignalSet;
 use linux_raw_sys::general::*;
 
 const FD_SETSIZE: usize = 1024;

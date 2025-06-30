@@ -15,12 +15,6 @@
 # /musl/busybox sh /musl/cyclictest_testcode.sh
 
 # TODO
-# glibc iozone测例
-/musl/busybox sh /glibc/iozone_testcode.sh
-# musl iozone测例
-/musl/busybox sh /musl/iozone_testcode.sh
-
-# TODO
 # glibc iperf测例
 # /glibc/busybox sh /glibc/iperf_testcode.sh
 # musl iperf测例
@@ -68,3 +62,10 @@
 # /glibc/busybox sh /glibc/netperf_testcode.sh
 # musl netperf测例
 # /musl/busybox sh /musl/netperf_testcode.sh
+
+# TODO
+# glibc iozone测例
+/musl/busybox sh /glibc/iozone_testcode.sh
+# musl iozone测例
+/musl/busybox sh /musl/iozone_testcode.sh
+
