@@ -494,8 +494,6 @@ pub fn sys_shmdt(shmaddr: usize) -> LinuxResult<isize> {
         }
     }
 
-    drop(aspace); // 释放地址空间锁
-
     // 更新段的分离信息并检查是否需要清理
     let should_cleanup = {
         let mut segment = segment_arc.write();
@@ -514,8 +512,15 @@ pub fn sys_shmdt(shmaddr: usize) -> LinuxResult<isize> {
         if let Some(_removed_segment) = manager.segments.remove(&shmid) {
             // 清理相关的attachment记录（应该已经为空）
             manager.attachments.remove(&shmid);
+            let _ = aspace.dealloc_shared(
+                segment_arc.read().phys_addr,
+                aligned_length,
+                PageSize::Size4K,
+            );
         }
     }
+
+    drop(aspace);
 
     debug!(
         "Successfully detached shared memory segment {} from address {:#x}",

@@ -229,11 +229,7 @@ impl AddrSpace {
     ///
     /// Returns an error if the address range is out of the address space or not
     /// aligned.
-    pub fn alloc_shared(
-        &mut self,
-        size: usize,
-        align: PageSize,
-    ) -> AxResult<PhysAddr> {
+    pub fn alloc_shared(&mut self, size: usize, align: PageSize) -> AxResult<PhysAddr> {
         let allocator = axalloc::global_allocator();
         let page_size = if align == PageSize::Size4K {
             PAGE_SIZE_4K
@@ -247,6 +243,18 @@ impl AddrSpace {
             .map_err(|_| AxError::NoMemory)?;
         let paddr = virt_to_phys(vaddr.into());
         Ok(paddr)
+    }
+
+    pub fn dealloc_shared(&mut self, paddr: PhysAddr, size: usize, align: PageSize) -> AxResult {
+        let allocator = axalloc::global_allocator();
+        let page_size = if align == PageSize::Size4K {
+            PAGE_SIZE_4K
+        } else {
+            return ax_err!(InvalidInput, "unsupported page size");
+        };
+        let page_count = size / page_size;
+        allocator.dealloc_pages(paddr.as_usize(), page_count);
+        Ok(())
     }
 
     /// Populates the area with physical frames, returning false if the area

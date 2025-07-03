@@ -3,7 +3,7 @@
 use alloc::vec;
 use alloc::{
     borrow::ToOwned,
-    string::{String, ToString},
+    string::String,
     vec::Vec,
 };
 use axerrno::{AxError, AxResult};
@@ -129,23 +129,15 @@ pub fn load_user_app(
             .collect();
 
         // 添加解释器路径映射
-        if let Some(interpreter) = new_args.first() {
-            match interpreter.as_str() {
-                "/bin/sh" | "/bin/bash" => {
-                    new_args[0] = "/musl/busybox".to_string();
-                    new_args.insert(1, "sh".to_string());
-                }
-                "/bin/busybox" => {
-                    new_args[0] = "/musl/busybox".to_string();
-                }
-                // path if path.starts_with("/bin/") => {
-                //     let command = path.strip_prefix("/bin/").unwrap().to_string();
-                //     new_args[0] = "/musl/busybox".to_string();
-                //     new_args.insert(1, command);
-                // },
-                _ => {}
-            }
-        }
+        // if let Some(interpreter) = new_args.first() {
+        //     match interpreter.as_str() {
+        //         "/bin/sh" | "/bin/bash" => {
+        //             new_args[0] = "/bin/busybox".to_string();
+        //             new_args.insert(1, "sh".to_string());
+        //         }
+        //         _ => {}
+        //     }
+        // }
 
         new_args.extend_from_slice(args);
         return load_user_app(uspace, &new_args, envs);
@@ -174,6 +166,7 @@ pub fn load_user_app(
             || interp_path == "/lib/ld-linux-aarch64.so.1"
             || interp_path == "/lib/ld-linux-riscv64-lp64d.so.1"
             || interp_path == "/lib/ld-musl-riscv64-sf.so.1"
+            || interp_path == "/lib/ld-musl-riscv64.so.1"
             || interp_path == "/lib64/ld-musl-loongarch-lp64d.so.1"
         {
             interp_path = String::from("/musl/lib/libc.so");
