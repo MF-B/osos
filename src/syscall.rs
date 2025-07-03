@@ -217,10 +217,24 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         Sysno::clock_gettime => sys_clock_gettime(tf.arg0() as _, tf.arg1().into()),
 
         // I/O multiplexing
+        #[cfg(target_arch = "x86_64")]
+        Sysno::poll => sys_poll(
+            tf.arg0().into(),
+            tf.arg1() as _,
+            tf.arg2().into(),
+        ),
         Sysno::ppoll => sys_poll(
             tf.arg0().into(),
             tf.arg1() as _,
-            tf.arg2() as _,
+            tf.arg2().into(),
+        ),
+        #[cfg(target_arch = "x86_64")]
+        Sysno::select => sys_select(
+            tf.arg0() as _,
+            tf.arg1().into(),
+            tf.arg2().into(),
+            tf.arg3().into(),
+            tf.arg4().into(),
         ),
         Sysno::pselect6 => sys_select(
             tf.arg0() as _,

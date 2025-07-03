@@ -1,3 +1,5 @@
+use core::time::Duration;
+
 use crate::file::get_file_like;
 use crate::ptr::UserConstPtr;
 use crate::ptr::UserPtr;
@@ -146,6 +148,99 @@ pub fn sys_select(
             debug!("    timeout!");
             return Ok(0);
         }
+        axtask::yield_now();
+    }
+}
+
+/// Poll file descriptors for events
+pub fn sys_poll(
+    fds: UserPtr<pollfd>,
+    nfds: u32,
+    timeout: UserConstPtr<i32>,
+) -> LinuxResult<isize> {
+    if nfds > 1024 {
+        return Err(LinuxError::EINVAL);
+    }
+
+    // 计算超时时间
+    // 计算超时时间
+    let timeout = *timeout.get_as_ref().unwrap_or(&0);
+    let deadline = if timeout >= 0 {
+        Some(wall_time() + Duration::from_millis(timeout as u64))
+    } else {
+        None
+    };
+
+    // 获取用户提供的pollfd数组
+    let poll_fds = fds.get_as_mut_slice(nfds as usize).unwrap();
+
+    loop {
+        axnet::poll_interfaces();
+        
+        let mut ready_count = 0;
+        
+        // 检查每个文件描述符的状态
+        for fd_entry in &mut *poll_fds {
+            // 初始化revents为0
+            fd_entry.revents = 0;
+            
+            // 如果没有请求任何事件，则跳过
+            if fd_entry.events == 0 {
+                continue;
+            }
+            
+            // 获取文件描述符对应的文件对象
+            match get_file_like(fd_entry.fd as _) {
+                Ok(file) => {
+                    // 获取文件的轮询状态
+                    match file.poll() {
+                        Ok(state) => {
+                            // 检查是否可读
+                            if (fd_entry.events & POLLIN as i16) != 0 && state.readable {
+                                fd_entry.revents |= POLLIN as i16;
+                            }
+                            
+                            // 检查是否可写
+                            if (fd_entry.events & POLLOUT as i16) != 0 && state.writable {
+                                fd_entry.revents |= POLLOUT as i16;
+                            }
+                            
+                            // 如果有任何事件就绪，增加计数
+                            if fd_entry.revents != 0 {
+                                ready_count += 1;
+                            }
+                        }
+                        Err(_) => {
+                            // 错误状态
+                            fd_entry.revents |= POLLERR as i16;
+                            ready_count += 1;
+                        }
+                    }
+                }
+                Err(_) => {
+                    // 无效的文件描述符
+                    fd_entry.revents |= POLLNVAL as i16;
+                    ready_count += 1;
+                }
+            }
+        }
+        
+        // 如果有就绪的文件描述符，立即返回
+        if ready_count > 0 {
+            return Ok(ready_count as isize);
+        }
+        
+        // 检查是否超时
+        match deadline {
+            Some(ddl) if wall_time() >= ddl => {
+                debug!("    poll timeout!");
+                return Ok(0);
+            }
+            None => {}, // 无限期等待
+            _ => {}    // 继续等待直到超时
+        }
+        
+        // 让出CPU时间片
         axtask::yield_now();
     }
 }
