@@ -1,71 +1,76 @@
-# glibc basic测例
-/musl/busybox sh /glibc/basic_testcode.sh
-# musl basic测例
-/musl/busybox sh /musl/basic_testcode.sh
+# /musl/busybox --install -s /bin
+/musl/busybox sh
 
-# glibc busybox测例
-/musl/busybox sh /glibc/busybox_testcode.sh
-# musl busybox测例
-/musl/busybox sh /musl/busybox_testcode.sh
+# # # glibc basic测例
+# /musl/busybox /glibc/basic_testcode.sh
+# # # musl basic测例
+# /musl/busybox sh /musl/basic_testcode.sh
 
-# TODO
-# glibc cyclictest测例
-# /musl/busybox sh /glibc/cyclictest_testcode.sh
-# musl cyclictest测例
-# /musl/busybox sh /musl/cyclictest_testcode.sh
+# # # # glibc busybox测例
+# /musl/busybox sh /glibc/busybox_testcode.sh
+# # # musl busybox测例
+# /musl/busybox sh /musl/busybox_testcode.sh
 
-# TODO
-# glibc iperf测例
-# /glibc/busybox sh /glibc/iperf_testcode.sh
-# musl iperf测例
-# /musl/busybox sh /musl/iperf_testcode.sh
+# # # TODO
+# # # glibc cyclictest测例
+# # /musl/busybox sh /glibc/cyclictest_testcode.sh
+# # # musl cyclictest测例
+# # /musl/busybox sh /musl/cyclictest_testcode.sh
 
-# TODO
-# glibc libcbench测例
-# /musl/busybox sh /glibc/libcbench_testcode.sh
-# musl libcbench测例
-# /musl/busybox sh /musl/libcbench_testcode.sh
+# # # TODO
+# # # glibc iperf测例
+# # # /musl/busybox sh /glibc/iperf_testcode.sh
+# # # # musl iperf测例
+# # # /musl/busybox sh /musl/iperf_testcode.sh
 
-# TODO
-# glibc libctest测例
-/musl/busybox echo "#### OS COMP TEST GROUP START libctest-glibc ####"  
-/musl/busybox sh /glibc/run-static.sh  
-/musl/busybox sh /glibc/run-dynamic.sh
-/musl/busybox echo "#### OS COMP TEST GROUP END libctest-glibc ####"
-# musl libctest测例
-/musl/busybox echo "#### OS COMP TEST GROUP START libctest-musl ####"
-/musl/busybox sh /musl/run-static.sh
-/musl/busybox sh /musl/run-dynamic.sh
-/musl/busybox echo "#### OS COMP TEST GROUP END libctest-musl ####"
+# # # # TODO
+# # # # glibc libcbench测例
+# # # # /musl/busybox sh /glibc/libcbench_testcode.sh
+# # # # musl libcbench测例
+# # # # /musl/busybox sh /musl/libcbench_testcode.sh
 
+# # # TODO
+# # # glibc lmbench测例
+# # # /glibc/busybox sh /glibc/lmbench_testcode.sh
+# # # musl lmbench测例
+# # # /musl/busybox sh /musl/lmbench_testcode.sh
 
-# TODO
-# glibc lmbench测例
-# /glibc/busybox sh /glibc/lmbench_testcode.sh
-# musl lmbench测例
-# /musl/busybox sh /musl/lmbench_testcode.sh
+# # TODO
+# # glibc ltp测例
+# # /musl/busybox echo "#### cp /musl/busybox /bin/busybox ####"
+# # /musl/busybox mkdir /bin
+# # /musl/busybox cp /musl/busybox /bin/basename
+# # /musl/busybox cp /musl/busybox /musl/basename
+# # /musl/busybox sh /musl/ltp_testcode.sh
+# # musl ltp测例
+# # /musl/busybox sh /musl/ltp_testcode.sh
 
-# TODO
-# glibc ltp测例
-# /musl/busybox sh /glibc/ltp_testcode.sh
-# musl ltp测例
-# /musl/busybox sh /musl/ltp_testcode.sh
+# # # TODO
+# # # glibc lua测例
+# /musl/busybox sh /glibc/lua_testcode.sh
+# # # musl lua测例
+# /musl/busybox sh /musl/lua_testcode.sh
 
-# TODO
-# glibc lua测例
-/musl/busybox sh /glibc/lua_testcode.sh
-# musl lua测例
-/musl/busybox sh /musl/lua_testcode.sh
+# # # TODO
+# # # glibc netperf测例
+# # # /glibc/busybox sh /glibc/netperf_testcode.sh
+# # # musl netperf测例
+# # # /musl/busybox sh /musl/netperf_testcode.sh
 
-# TODO
-# glibc netperf测例
-# /glibc/busybox sh /glibc/netperf_testcode.sh
-# musl netperf测例
-# /musl/busybox sh /musl/netperf_testcode.sh
+# # # TODO
+# # # glibc iozone测例
+# /musl/busybox sh /glibc/iozone_testcode.sh
+# # # musl iozone测例
+# /musl/busybox sh /musl/iozone_testcode.sh
 
-# TODO
-# glibc iozone测例
-/musl/busybox sh /glibc/iozone_testcode.sh
-# musl iozone测例
-/musl/busybox sh /musl/iozone_testcode.sh
-
+# # # TODO
+# # # glibc libctest测例
+# /musl/busybox echo "#### OS COMP TEST GROUP START libctest-glibc ####"  
+# /musl/busybox sh /glibc/run-static.sh  
+# /musl/busybox sh /glibc/run-dynamic.sh
+# /musl/busybox echo "#### OS COMP TEST GROUP END libctest-glibc ####"
+# # # musl libctest测例
+# /musl/busybox echo "#### OS COMP TEST GROUP START libctest-musl ####"
+# /musl/busybox sh /musl/run-static.sh
+# /musl/busybox sh /musl/run-dynamic.sh
+# /musl/busybox echo "#### OS COMP TEST GROUP END libctest-musl ####"

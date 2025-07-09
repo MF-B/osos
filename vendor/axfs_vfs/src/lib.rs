@@ -43,7 +43,7 @@ mod structs;
 
 pub mod path;
 
-use alloc::sync::Arc;
+use alloc::{string::String, sync::Arc};
 use axerrno::{ax_err, AxError, AxResult};
 
 pub use self::structs::{FileSystemInfo, VfsDirEntry, VfsNodeAttr, VfsNodePerm, VfsNodeType};
@@ -167,6 +167,16 @@ pub trait VfsNodeOps: Send + Sync {
     /// [2]: core::any::Any#method.downcast_ref
     fn as_any(&self) -> &dyn core::any::Any {
         unimplemented!()
+    }
+
+    /// read the symbolic link and return the target path.
+    fn read_link(&self) -> VfsResult<String> {
+        ax_err!(Unsupported)
+    }
+
+    /// Check if the node is a symbolic link.
+    fn is_symlink(&self) -> bool {
+        false
     }
 }
 

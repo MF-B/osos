@@ -12,9 +12,10 @@
 [package]
 edition = "2021"
 name = "axfs_vfs"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Yuekai Jia <equation618@gmail.com>"]
 build = false
+autolib = false
 autobins = false
 autoexamples = false
 autotests = false
@@ -36,18 +37,14 @@ categories = [
 license = "GPL-3.0-or-later OR Apache-2.0 OR MulanPSL-2.0"
 repository = "https://github.com/arceos-org/axfs_crates"
 
+[features]
+default = []
+
 [lib]
 name = "axfs_vfs"
 path = "src/lib.rs"
 
-[dependencies.axerrno]
-version = "0.1"
-
-[dependencies.bitflags]
-version = "2.6"
-
-[dependencies.log]
-version = "0.4"
-
-[features]
-default = []
+[dependencies]
+axerrno = "0.1"
+bitflags = "2.6"
+log = "0.4"

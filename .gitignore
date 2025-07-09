@@ -17,3 +17,5 @@ apps/*/build/
 kernel-la
 kernel-rv
 sdcard*
+bash*
+core*

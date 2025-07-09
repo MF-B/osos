@@ -3,5 +3,7 @@
 # signal_c
 # shm_c
 # poll_c
-select_c
+# select_c
 # fsync_c
+# mem_c
+symlink_c
