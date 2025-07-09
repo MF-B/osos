@@ -8,6 +8,7 @@ use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps, VfsResu
 use axns::{ResArc, def_resource};
 use axsync::Mutex;
 use lazyinit::LazyInit;
+use lwext4_rust::Ext4File;
 use spin::RwLock;
 
 use crate::{
@@ -335,4 +336,23 @@ pub(crate) fn rename(old: &str, new: &str) -> AxResult {
         remove_file(None, new)?;
     }
     parent_node_of(None, old).rename(old, new)
+}
+
+pub(crate) fn create_symlink(old: &str, new: &str) -> AxResult {
+    if old.is_empty() || new.is_empty() {
+        return ax_err!(InvalidInput);
+    }
+
+    Ext4File::create_symlink(old, new)
+        .map(|_| ())
+        .map_err(|e| e.try_into().unwrap())
+}
+
+pub(crate) fn read_link(path: &str, buf: &mut [u8]) -> AxResult<usize> {
+    if path.is_empty() {
+        return ax_err!(NotFound);
+    }
+    Ext4File::read_link(path, buf)
+        .map(|len| len as usize)
+        .map_err(|e| e.try_into().unwrap())
 }

@@ -6,7 +6,7 @@ use axhal::arch::TrapFrame;
 use axtask::{TaskExtRef, current};
 use starry_core::mm::{load_user_app, map_trampoline};
 
-use crate::ptr::UserConstPtr;
+use crate::{handle_symlink_path, ptr::UserConstPtr};
 
 pub fn sys_execve(
     tf: &mut TrapFrame,
@@ -15,12 +15,20 @@ pub fn sys_execve(
     envp: UserConstPtr<UserConstPtr<c_char>>,
 ) -> LinuxResult<isize> {
     let path = path.get_as_str()?.to_string();
+    let sym_path = handle_symlink_path(-100, path.as_str())?;
+    let is_symlink = sym_path != path;
 
-    let args = argv
+    let mut args = argv
         .get_as_null_terminated()?
         .iter()
         .map(|arg| arg.get_as_str().map(Into::into))
         .collect::<Result<Vec<_>, _>>()?;
+    
+    // 如果是符号链接，将sym_path替换为args[0]
+    if is_symlink {
+        args.insert(0, sym_path.clone());
+    }
+    
     let envs = envp
         .get_as_null_terminated()?
         .iter()

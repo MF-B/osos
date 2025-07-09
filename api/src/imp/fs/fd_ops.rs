@@ -3,6 +3,7 @@ use core::{
     panic,
 };
 
+use alloc::string::String;
 use alloc::string::ToString;
 use axerrno::{AxError, LinuxError, LinuxResult};
 use axfs::fops::OpenOptions;
@@ -65,6 +66,9 @@ pub fn sys_openat(
     let path = path.get_as_str()?;
     let opts = flags_to_options(flags, mode);
     debug!("sys_openat <= {} {} {:?}", dirfd, path, opts);
+
+    let binding = handle_symlink_path(dirfd, path)?;
+    let path = binding.as_str();
 
     let dir = if path.starts_with('/') || dirfd == AT_FDCWD {
         None
@@ -163,6 +167,33 @@ pub fn sys_fcntl(fd: c_int, cmd: c_int, arg: usize) -> LinuxResult<isize> {
         _ => {
             warn!("unsupported fcntl parameters: cmd: {}", cmd);
             Ok(0)
+        }
+    }
+}
+
+pub fn handle_symlink_path(dirfd: c_int, path: &str) -> LinuxResult<String> {
+    let mut current_path = handle_file_path(dirfd, path)?;
+    let buf: &mut [u8] = &mut [0; 4096];
+    let mut depth = 0;
+    const MAX_SYMLINK_DEPTH: usize = 8; // 限制符号链接解析深度
+    
+    loop {
+        if depth >= MAX_SYMLINK_DEPTH {
+            return Err(LinuxError::ELOOP.into());
+        }
+        
+        match axfs::api::read_link(current_path.as_str(), buf) {
+            Ok(len) if len > 0 => {
+                let link_target = core::str::from_utf8(&buf[..len])
+                    .map_err(|_| AxError::InvalidInput)?;
+
+                current_path = handle_file_path(dirfd, link_target)?;
+                depth += 1;
+            }
+            _ => {
+                // 不是符号链接或读取出错，返回当前路径
+                return Ok(current_path.to_string());
+            }
         }
     }
 }

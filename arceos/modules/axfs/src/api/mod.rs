@@ -92,3 +92,11 @@ pub fn rename(old: &str, new: &str) -> io::Result<()> {
 pub fn absolute_path_exists(path: &str) -> bool {
     crate::root::lookup(None, path).is_ok()
 }
+
+pub fn create_symlink(old: &str, new: &str) -> io::Result<()> {
+    crate::root::create_symlink(old, new)
+}
+
+pub fn read_link(path: &str, buf: &mut [u8]) -> io::Result<usize> {
+    crate::root::read_link(path, buf)
+}

@@ -9,6 +9,7 @@ use crate::{
     path::handle_file_path,
     ptr::{UserConstPtr, UserPtr, nullable},
 };
+use crate::handle_symlink_path;
 
 fn stat_at_path(path: &str) -> LinuxResult<Kstat> {
     let opts = OpenOptions::new().set_read(true);
@@ -70,7 +71,9 @@ pub fn sys_fstatat(
         let f = get_file_like(dirfd)?;
         f.stat()?.into()
     } else {
-        let path = handle_file_path(dirfd, path.unwrap_or_default())?;
+        let binding = handle_symlink_path(dirfd, path.unwrap_or_default())?;
+        let path = binding.as_str();
+        let path = handle_file_path(dirfd, path)?;
         stat_at_path(path.as_str())?.into()
     };
 

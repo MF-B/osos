@@ -324,6 +324,11 @@ impl VfsNodeOps for FileWrapper {
     fn as_any(&self) -> &dyn core::any::Any {
         self as &dyn core::any::Any
     }
+
+    fn is_symlink(&self) -> bool {
+        let file = self.0.lock();
+        file.get_type() == InodeTypes::EXT4_DE_SYMLINK
+    }
 }
 
 impl Drop for FileWrapper {

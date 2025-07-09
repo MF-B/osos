@@ -258,3 +258,52 @@ pub fn sys_getcwd(buf: UserPtr<u8>, size: usize) -> LinuxResult<isize> {
         Err(LinuxError::ERANGE)
     }
 }
+
+pub fn sys_symlinkat(
+    old_path: UserConstPtr<c_char>,
+    new_dirfd: c_int,
+    new_path: UserConstPtr<c_char>,
+) -> LinuxResult<isize> {
+    let old_path = old_path.get_as_str()?;
+    let new_path = new_path.get_as_str()?;
+    debug!(
+        "sys_symlinkat <= old_path: {}, new_dirfd: {}, new_path: {}",
+        old_path, new_dirfd, new_path
+    );
+
+    // 处理新路径，支持相对于 dirfd 的路径
+    let new_path = handle_file_path(new_dirfd, new_path)?;
+    
+    // 创建符号链接
+    axfs::api::create_symlink(old_path, &new_path)?;
+
+    Ok(0)
+}
+
+pub fn sys_readlinkat(
+    dirfd: c_int,
+    path: UserConstPtr<c_char>,
+    buf: UserPtr<u8>,
+    bufsiz: usize,
+) -> LinuxResult<isize> {
+    let path = path.get_as_str()?;
+    debug!(
+        "sys_readlinkat <= dirfd: {}, path: {}, bufsiz: {}",
+        dirfd, path, bufsiz
+    );
+
+    if bufsiz == 0 {
+        return Err(LinuxError::EINVAL);
+    }
+
+    let buf = buf.get_as_mut_slice(bufsiz)?;
+    
+    // 处理路径，支持相对于 dirfd 的路径
+    let path = handle_file_path(dirfd, path)?;
+    
+    // 读取符号链接的目标
+    let copy_len = axfs::api::read_link(&path, buf)?;
+    
+    // 返回实际读取的字节数
+    Ok(copy_len as isize)
+}
