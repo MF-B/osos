@@ -394,7 +394,7 @@ source = "git+https://github.com/Starry-OS/axprocess.git#16668091f34fcc7224bbc25
 dependencies = [
  "kspin",
  "lazyinit",
- "weak-map 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "weak-map",
 ]
 
 [[package]]
@@ -1319,7 +1319,7 @@ dependencies = [
  "page_table_multiarch",
  "percpu",
  "spin",
- "weak-map 0.1.1 (git+https://github.com/Starry-OS/weak-map.git)",
+ "weak-map",
  "xmas-elf",
 ]
 
@@ -1502,11 +1502,6 @@ name = "weak-map"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "209bc3ff6d982801239e57fa3b8b3505d4fc41102d1d162cca38b325297fe77b"
-
-[[package]]
-name = "weak-map"
-version = "0.1.1"
-source = "git+https://github.com/Starry-OS/weak-map.git#12bb7455fc8dc2c8f4ed2ba57f021ec167a6deca"
 
 [[package]]
 name = "windows-sys"

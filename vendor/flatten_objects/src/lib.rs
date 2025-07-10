@@ -341,7 +341,42 @@ where
     /// assert_eq!(iter.next(), None);
     /// ```
     #[inline]
-    pub fn ids(&self) -> Iter<CAP> {
+    pub fn ids(&self) -> Iter<'_, CAP> {
         self.id_bitmap.into_iter()
+    }
+}
+
+impl<T, const CAP: usize> Default for FlattenObjects<T, CAP>
+where
+    BitsImpl<{ CAP }>: Bits,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T: Clone, const CAP: usize> Clone for FlattenObjects<T, CAP>
+where
+    BitsImpl<{ CAP }>: Bits,
+{
+    fn clone(&self) -> Self {
+        let mut cloned = Self::new();
+        cloned.count = self.count;
+        cloned.id_bitmap = self.id_bitmap;
+        for id in &self.id_bitmap {
+            cloned.objects[id].write(unsafe { self.objects[id].assume_init_ref() }.clone());
+        }
+        cloned
+    }
+}
+
+impl<T, const CAP: usize> Drop for FlattenObjects<T, CAP>
+where
+    BitsImpl<{ CAP }>: Bits,
+{
+    fn drop(&mut self) {
+        for id in &self.id_bitmap {
+            unsafe { self.objects[id].assume_init_drop() };
+        }
     }
 }

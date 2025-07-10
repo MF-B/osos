@@ -31,4 +31,4 @@ percpu = "0.2.0"
 xmas-elf = "0.9"
 page_table_multiarch = "0.5.3"
 
-weak-map = { git = "https://github.com/Starry-OS/weak-map.git" }
+weak-map = "0.1.1"

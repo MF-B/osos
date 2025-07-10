@@ -433,6 +433,40 @@ impl Ext4File {
 
         Ok((name, inode_type))
     }
+    pub fn create_symlink(target: &str, path: &str) -> Result<usize, i32> {
+        let c_target = CString::new(target).expect("CString::new failed");
+        let c_path = CString::new(path).expect("CString::new failed");
+        let c_target = c_target.into_raw();
+        let c_path = c_path.into_raw();
+
+        let r = unsafe { ext4_fsymlink(c_target, c_path) };
+        unsafe {
+            drop(CString::from_raw(c_target));
+            drop(CString::from_raw(c_path));
+        }
+
+        if r != EOK as i32 {
+            error!("ext4_fsymlink: rc = {}", r);
+            return Err(r);
+        }
+        Ok(EOK as usize)
+    }
+
+    pub fn read_link(path: &str, buf: &mut [u8]) -> Result<usize, i32> {
+        let c_path = CString::new(path).expect("CString::new failed");
+        let c_path = c_path.into_raw();
+        let mut rcnt: usize = 0;
+
+        let r = unsafe { ext4_readlink(c_path, buf.as_mut_ptr() as *mut u8, buf.len(), &mut rcnt) };
+        unsafe {
+            drop(CString::from_raw(c_path));
+        }
+
+        if r != EOK as i32 {
+            return Err(r);
+        }
+        Ok(rcnt)
+    }
 }
 
 /*

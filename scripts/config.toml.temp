@@ -15,8 +15,12 @@ axtask = { path = "%AX_ROOT%/modules/axtask" }
 [source.crates-io]
 replace-with = "vendored-sources"
 
-[source."git+https://github.com/Azure-stars/lwext4_rust.git"]
-git = "https://github.com/Azure-stars/lwext4_rust.git"
+[source."git+https://github.com/MF-B/axfs_crates.git"]
+git = "https://github.com/MF-B/axfs_crates.git"
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/MF-B/lwext4_rust.git"]
+git = "https://github.com/MF-B/lwext4_rust.git"
 replace-with = "vendored-sources"
 
 [source."git+https://github.com/Mivik/page_table_multiarch.git?rev=19ededd"]
@@ -31,10 +35,6 @@ replace-with = "vendored-sources"
 [source."git+https://github.com/Starry-OS/axsignal.git?rev=b5b6089"]
 git = "https://github.com/Starry-OS/axsignal.git"
 rev = "b5b6089"
-replace-with = "vendored-sources"
-
-[source."git+https://github.com/Starry-OS/weak-map.git"]
-git = "https://github.com/Starry-OS/weak-map.git"
 replace-with = "vendored-sources"
 
 [source."git+https://github.com/arceos-org/allocator.git?tag=v0.1.1"]

@@ -13,8 +13,12 @@
 edition = "2024"
 rust-version = "1.85"
 name = "flatten_objects"
-version = "0.2.3"
-authors = ["Yuekai Jia <equation618@gmail.com>"]
+version = "0.2.4"
+authors = [
+    "Yuekai Jia <equation618@gmail.com>",
+    "Asakura Mizu <asakuramizu111@gmail.com>",
+    "Su Mingxian <aarkegz@gmail.com>",
+]
 build = false
 autolib = false
 autobins = false
@@ -39,6 +43,10 @@ repository = "https://github.com/arceos-org/flatten_objects"
 [lib]
 name = "flatten_objects"
 path = "src/lib.rs"
+
+[[test]]
+name = "test_clone_and_drop"
+path = "tests/test_clone_and_drop.rs"
 
 [dependencies.bitmaps]
 version = "3.2"

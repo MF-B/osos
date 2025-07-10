@@ -7,17 +7,18 @@ use alloc::ffi::CString;
 use axerrno::{LinuxError, LinuxResult};
 use axfs::fops::DirEntry;
 use linux_raw_sys::general::{
-    linux_dirent64, AT_FDCWD, AT_REMOVEDIR, DT_BLK, DT_CHR, DT_DIR, DT_FIFO, DT_LNK, DT_REG, DT_SOCK, DT_UNKNOWN, RENAME_EXCHANGE, RENAME_NOREPLACE, RENAME_WHITEOUT
+    AT_FDCWD, AT_REMOVEDIR, DT_BLK, DT_CHR, DT_DIR, DT_FIFO, DT_LNK, DT_REG, DT_SOCK, DT_UNKNOWN,
+    linux_dirent64,
 };
 
 use crate::{
     file::{Directory, FileLike},
-    path::{handle_file_path, HARDLINK_MANAGER},
-    ptr::{nullable, UserConstPtr, UserPtr},
+    path::{HARDLINK_MANAGER, handle_file_path},
+    ptr::{UserConstPtr, UserPtr, nullable},
 };
 
-use axtask::current;
 use axtask::TaskExtRef;
+use axtask::current;
 
 // Terminal control constants
 const TCGETS: usize = 0x5401;
@@ -38,12 +39,12 @@ const TIOCGWINSZ: usize = 0x5413;
 /// * `argp` - The argument to the request. It is a pointer to a memory location
 pub fn sys_ioctl(fd: i32, op: usize, argp: UserPtr<c_void>) -> LinuxResult<isize> {
     debug!("sys_ioctl <= fd: {}, op: 0x{:x}", fd, op);
-    
+
     // 获取文件描述符
     let current = current();
     // let file = get_file_like(fd as _)
     //     .map_err(|_| LinuxError::EBADF)?;
-    
+
     // 检查是否是 tty 设备
     match op {
         TCGETS | TCSETS | TCSETSW | TCSETSF => {
@@ -85,8 +86,8 @@ pub fn sys_ioctl(fd: i32, op: usize, argp: UserPtr<c_void>) -> LinuxResult<isize
                 // let winsize = argp.cast::<Winsize>().get_as_mut()?;
                 let winsize_ptr = argp.address().as_mut_ptr() as *mut Winsize;
                 let winsize = unsafe { &mut *winsize_ptr };
-                winsize.ws_row = 24;    // 默认24行
-                winsize.ws_col = 80;    // 默认80列
+                winsize.ws_row = 24; // 默认24行
+                winsize.ws_col = 80; // 默认80列
                 winsize.ws_xpixel = 0;
                 winsize.ws_ypixel = 0;
             }
@@ -94,7 +95,7 @@ pub fn sys_ioctl(fd: i32, op: usize, argp: UserPtr<c_void>) -> LinuxResult<isize
         }
         _ => {
             debug!("Unsupported ioctl operation: 0x{:x}", op);
-            Ok(0)  // 对于不支持的操作，返回成功以避免程序崩溃
+            Ok(0) // 对于不支持的操作，返回成功以避免程序崩溃
         }
     }
 }
@@ -342,7 +343,7 @@ pub fn sys_symlinkat(
 
     // 处理新路径，支持相对于 dirfd 的路径
     let new_path = handle_file_path(new_dirfd, new_path)?;
-    
+
     // 创建符号链接
     axfs::api::create_symlink(old_path, &new_path)?;
 
@@ -366,13 +367,13 @@ pub fn sys_readlinkat(
     }
 
     let buf = buf.get_as_mut_slice(bufsiz)?;
-    
+
     // 处理路径，支持相对于 dirfd 的路径
     let path = handle_file_path(dirfd, path)?;
-    
+
     // 读取符号链接的目标
     let copy_len = axfs::api::read_link(&path, buf)?;
-    
+
     // 返回实际读取的字节数
     Ok(copy_len as isize)
 }

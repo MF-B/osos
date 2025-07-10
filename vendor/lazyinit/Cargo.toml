@@ -11,9 +11,16 @@
 
 [package]
 edition = "2021"
+rust-version = "1.56.1"
 name = "lazyinit"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Yuekai Jia <equation618@gmail.com>"]
+build = false
+autolib = false
+autobins = false
+autoexamples = false
+autotests = false
+autobenches = false
 description = "Initialize a static value lazily."
 homepage = "https://github.com/arceos-org/arceos"
 documentation = "https://docs.rs/lazyinit"
@@ -29,5 +36,9 @@ categories = [
 ]
 license = "GPL-3.0-or-later OR Apache-2.0 OR MulanPSL-2.0"
 repository = "https://github.com/arceos-org/lazyinit"
+
+[lib]
+name = "lazyinit"
+path = "src/lib.rs"
 
 [dependencies]

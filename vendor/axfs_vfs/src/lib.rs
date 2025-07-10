@@ -43,7 +43,7 @@ mod structs;
 
 pub mod path;
 
-use alloc::{string::String, sync::Arc};
+use alloc::sync::Arc;
 use axerrno::{ax_err, AxError, AxResult};
 
 pub use self::structs::{FileSystemInfo, VfsDirEntry, VfsNodeAttr, VfsNodePerm, VfsNodeType};
@@ -170,7 +170,7 @@ pub trait VfsNodeOps: Send + Sync {
     }
 
     /// read the symbolic link and return the target path.
-    fn read_link(&self) -> VfsResult<String> {
+    fn read_link(&self, _path: &str, _buf: &mut [u8]) -> VfsResult {
         ax_err!(Unsupported)
     }
 
