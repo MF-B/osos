@@ -7,15 +7,26 @@ use alloc::ffi::CString;
 use axerrno::{LinuxError, LinuxResult};
 use axfs::fops::DirEntry;
 use linux_raw_sys::general::{
-    AT_FDCWD, AT_REMOVEDIR, DT_BLK, DT_CHR, DT_DIR, DT_FIFO, DT_LNK, DT_REG, DT_SOCK, DT_UNKNOWN,
-    linux_dirent64,
+    linux_dirent64, AT_FDCWD, AT_REMOVEDIR, DT_BLK, DT_CHR, DT_DIR, DT_FIFO, DT_LNK, DT_REG, DT_SOCK, DT_UNKNOWN, RENAME_EXCHANGE, RENAME_NOREPLACE, RENAME_WHITEOUT
 };
 
 use crate::{
     file::{Directory, FileLike},
-    path::{HARDLINK_MANAGER, handle_file_path},
-    ptr::{UserConstPtr, UserPtr, nullable},
+    path::{handle_file_path, HARDLINK_MANAGER},
+    ptr::{nullable, UserConstPtr, UserPtr},
 };
+
+use axtask::current;
+use axtask::TaskExtRef;
+
+// Terminal control constants
+const TCGETS: usize = 0x5401;
+const TCSETS: usize = 0x5402;
+const TCSETSW: usize = 0x5403;
+const TCSETSF: usize = 0x5404;
+const TIOCGPGRP: usize = 0x540F;
+const TIOCSPGRP: usize = 0x5410;
+const TIOCGWINSZ: usize = 0x5413;
 
 /// The ioctl() system call manipulates the underlying device parameters
 /// of special files.
@@ -25,9 +36,67 @@ use crate::{
 /// * `op` - The request code. It is of type unsigned long in glibc and BSD,
 ///   and of type int in musl and other UNIX systems.
 /// * `argp` - The argument to the request. It is a pointer to a memory location
-pub fn sys_ioctl(_fd: i32, _op: usize, _argp: UserPtr<c_void>) -> LinuxResult<isize> {
-    warn!("Unimplemented syscall: SYS_IOCTL");
-    Ok(0)
+pub fn sys_ioctl(fd: i32, op: usize, argp: UserPtr<c_void>) -> LinuxResult<isize> {
+    debug!("sys_ioctl <= fd: {}, op: 0x{:x}", fd, op);
+    
+    // 获取文件描述符
+    let current = current();
+    // let file = get_file_like(fd as _)
+    //     .map_err(|_| LinuxError::EBADF)?;
+    
+    // 检查是否是 tty 设备
+    match op {
+        TCGETS | TCSETS | TCSETSW | TCSETSF => {
+            // 对于 tty 设备的终端控制操作，我们简单返回成功
+            // 这里可以实现更复杂的终端属性设置
+            debug!("Terminal control ioctl: 0x{:x}", op);
+            Ok(0)
+        }
+        TIOCGPGRP => {
+            // 获取前台进程组ID
+            debug!("Get foreground process group");
+            // 对于简化实现，返回当前进程的进程组ID
+            // 这样可以避免 SIGTTIN 信号的发送
+            let pgid = current.task_ext().thread.process().group().pgid();
+            if !argp.is_null() {
+                let argp_mut = argp.address().as_mut_ptr() as *mut i32;
+                unsafe { *argp_mut = pgid as i32 };
+            }
+            Ok(0)
+        }
+        TIOCSPGRP => {
+            // 设置前台进程组ID
+            debug!("Set foreground process group");
+            // 对于简化实现，我们忽略这个操作
+            Ok(0)
+        }
+        TIOCGWINSZ => {
+            // 获取终端窗口大小
+            debug!("Get window size");
+            // 返回默认的窗口大小
+            #[repr(C)]
+            struct Winsize {
+                ws_row: u16,
+                ws_col: u16,
+                ws_xpixel: u16,
+                ws_ypixel: u16,
+            }
+            if !argp.is_null() {
+                // let winsize = argp.cast::<Winsize>().get_as_mut()?;
+                let winsize_ptr = argp.address().as_mut_ptr() as *mut Winsize;
+                let winsize = unsafe { &mut *winsize_ptr };
+                winsize.ws_row = 24;    // 默认24行
+                winsize.ws_col = 80;    // 默认80列
+                winsize.ws_xpixel = 0;
+                winsize.ws_ypixel = 0;
+            }
+            Ok(0)
+        }
+        _ => {
+            debug!("Unsupported ioctl operation: 0x{:x}", op);
+            Ok(0)  // 对于不支持的操作，返回成功以避免程序崩溃
+        }
+    }
 }
 
 pub fn sys_chdir(path: UserConstPtr<c_char>) -> LinuxResult<isize> {
