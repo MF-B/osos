@@ -218,16 +218,8 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
 
         // I/O multiplexing
         #[cfg(target_arch = "x86_64")]
-        Sysno::poll => sys_poll(
-            tf.arg0().into(),
-            tf.arg1() as _,
-            tf.arg2().into(),
-        ),
-        Sysno::ppoll => sys_poll(
-            tf.arg0().into(),
-            tf.arg1() as _,
-            tf.arg2().into(),
-        ),
+        Sysno::poll => sys_poll(tf.arg0().into(), tf.arg1() as _, tf.arg2().into()),
+        Sysno::ppoll => sys_poll(tf.arg0().into(), tf.arg1() as _, tf.arg2().into()),
         #[cfg(target_arch = "x86_64")]
         Sysno::select => sys_select(
             tf.arg0() as _,
@@ -250,18 +242,33 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         Sysno::shmctl => sys_shmctl(tf.arg0() as _, tf.arg1() as _, tf.arg2().into()),
         Sysno::shmdt => sys_shmdt(tf.arg0() as _),
 
-        Sysno::symlinkat => sys_symlinkat(
-            tf.arg0().into(),
-            tf.arg1() as _,
-            tf.arg2().into(),
-        ),
+        // symlink
+        Sysno::symlinkat => sys_symlinkat(tf.arg0().into(), tf.arg1() as _, tf.arg2().into()),
         Sysno::readlinkat => sys_readlinkat(
             tf.arg0() as _,
             tf.arg1().into(),
             tf.arg2().into(),
             tf.arg3() as _,
         ),
-        
+
+        // random
+        Sysno::getrandom => sys_getrandom(tf.arg0().into(), tf.arg1() as _, tf.arg2() as _),
+
+        // blank
+        Sysno::faccessat => sys_faccessat(
+            tf.arg0() as _,
+            tf.arg1().into(),
+            tf.arg2() as _,
+            tf.arg3() as _,
+        ),
+        Sysno::prlimit64 => sys_prlimit64(
+            tf.arg0() as _,
+            tf.arg1() as _,
+            tf.arg2().into(),
+            tf.arg3().into(),
+        ),
+        Sysno::set_robust_list => sys_set_robust_list(tf.arg0().into(), tf.arg1() as _),
+
         _ => {
             error!("Unimplemented syscall: {}", sysno);
             Err(LinuxError::ENOSYS)

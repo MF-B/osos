@@ -19,6 +19,10 @@ pub mod misc {
     pub fn terminate() -> ! {
         unimplemented!()
     }
+    /// getrandom
+    pub fn random() -> u128 {
+        unimplemented!()
+    }
 }
 
 #[cfg(feature = "smp")]
