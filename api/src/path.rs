@@ -290,6 +290,7 @@ impl HardlinkManager {
     }
 }
 
+/// 将绝对/相对路径解析成绝对路径
 pub fn handle_file_path(dirfd: c_int, path: &str) -> LinuxResult<FilePath> {
     if path.starts_with('/') {
         Ok(FilePath::new(path)?)
@@ -302,5 +303,36 @@ pub fn handle_file_path(dirfd: c_int, path: &str) -> LinuxResult<FilePath> {
             FilePath::new(Directory::from_fd(dirfd)?.path())?
         };
         Ok(base.join(path)?)
+    }
+}
+
+/// 将绝对/相对路径解析成绝对路径，并处理符号链接
+pub fn handle_symlink_path(dirfd: c_int, path: &str) -> LinuxResult<String> {
+    // 转换相对路径 为 绝对路径
+    let mut absolute_path = handle_file_path(dirfd, path)?;
+
+    // 处理符号链接
+    let buf: &mut [u8] = &mut [0; 4096];
+    let mut depth = 0;
+    const MAX_SYMLINK_DEPTH: usize = 8; // 限制符号链接解析深度
+    
+    loop {
+        if depth >= MAX_SYMLINK_DEPTH {
+            return Err(LinuxError::ELOOP.into());
+        }
+        
+        match axfs::api::read_link(absolute_path.as_str(), buf) {
+            Ok(len) if len > 0 => {
+                let link_target = core::str::from_utf8(&buf[..len])
+                    .map_err(|_| AxError::InvalidInput)?;
+
+                absolute_path = handle_file_path(dirfd, link_target)?;
+                depth += 1;
+            }
+            _ => {
+                // 不是符号链接或读取出错，返回当前路径
+                return Ok(absolute_path.to_string());
+            }
+        }
     }
 }

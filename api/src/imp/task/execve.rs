@@ -6,7 +6,10 @@ use axhal::arch::TrapFrame;
 use axtask::{TaskExtRef, current};
 use starry_core::mm::{load_user_app, map_trampoline};
 
-use crate::{handle_symlink_path, ptr::UserConstPtr};
+use crate::{
+    path::{handle_file_path, handle_symlink_path},
+    ptr::UserConstPtr,
+};
 
 pub fn sys_execve(
     tf: &mut TrapFrame,
@@ -14,21 +17,22 @@ pub fn sys_execve(
     argv: UserConstPtr<UserConstPtr<c_char>>,
     envp: UserConstPtr<UserConstPtr<c_char>>,
 ) -> LinuxResult<isize> {
-    let path = path.get_as_str()?.to_string();
-    let sym_path = handle_symlink_path(-100, path.as_str())?;
-    let is_symlink = sym_path != path;
+    // 路径处理
+    let path = path.get_as_str()?;
+    let absolute_path = handle_symlink_path(-100, path)?;
+    let temp = handle_file_path(-100, path)?;
+    let need_path = absolute_path != temp.to_string();
 
     let mut args = argv
         .get_as_null_terminated()?
         .iter()
         .map(|arg| arg.get_as_str().map(Into::into))
         .collect::<Result<Vec<_>, _>>()?;
-    
-    // 如果是符号链接，将sym_path替换为args[0]
-    if is_symlink {
-        args.insert(0, sym_path.clone());
+
+    if need_path {
+        args.insert(0, absolute_path.clone());
     }
-    
+
     let envs = envp
         .get_as_null_terminated()?
         .iter()
@@ -63,9 +67,9 @@ pub fn sys_execve(
 
     let name = path
         .rsplit_once('/')
-        .map_or(path.as_str(), |(_, name)| name);
+        .map_or(path, |(_, name)| name);
     curr.set_name(name);
-    *curr_ext.process_data().exe_path.write() = path;
+    *curr_ext.process_data().exe_path.write() = path.to_string();
 
     // TODO: fd close-on-exec
 

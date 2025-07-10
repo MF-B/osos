@@ -9,7 +9,7 @@ use crate::{
     path::handle_file_path,
     ptr::{UserConstPtr, UserPtr, nullable},
 };
-use crate::handle_symlink_path;
+use crate::path::handle_symlink_path;
 
 fn stat_at_path(path: &str) -> LinuxResult<Kstat> {
     let opts = OpenOptions::new().set_read(true);
