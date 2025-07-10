@@ -1,6 +1,8 @@
 use axerrno::LinuxResult;
 use axtask::{TaskExtRef, current};
 use num_enum::TryFromPrimitive;
+use axprocess::Pid;
+use starry_core::task::get_process;
 
 pub fn sys_getpid() -> LinuxResult<isize> {
     Ok(axtask::current().task_ext().thread.process().pid() as _)
@@ -18,6 +20,21 @@ pub fn sys_getppid() -> LinuxResult<isize> {
 
 pub fn sys_gettid() -> LinuxResult<isize> {
     Ok(axtask::current().id().as_u64() as _)
+}
+
+pub fn sys_getpgid(pid: i32) -> LinuxResult<isize> {
+    if pid == 0 {
+        // pid 为 0，返回当前进程的进程组ID
+        let current = current();
+        let pgid = current.task_ext().thread.process().group().pgid();
+        Ok(pgid as isize)
+    } else {
+        // 查找指定 pid 的进程
+        let pid = pid as Pid;
+        let process = get_process(pid)?;
+        let pgid = process.group().pgid();
+        Ok(pgid as isize)
+    }
 }
 
 /// ARCH_PRCTL codes

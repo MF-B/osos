@@ -246,6 +246,7 @@ dependencies = [
  "axfs_devfs",
  "axfs_ramfs",
  "axfs_vfs",
+ "axhal",
  "axio",
  "axns",
  "axsync",
