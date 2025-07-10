@@ -18,9 +18,9 @@ pub fn sys_execve(
     envp: UserConstPtr<UserConstPtr<c_char>>,
 ) -> LinuxResult<isize> {
     // 路径处理
-    let path = path.get_as_str()?;
-    let absolute_path = handle_symlink_path(-100, path)?;
-    let temp = handle_file_path(-100, path)?;
+    let path = path.get_as_str()?.to_string();
+    let absolute_path = handle_symlink_path(-100, path.as_str())?;
+    let temp = handle_file_path(-100, path.as_str())?;
     let need_path = absolute_path != temp.to_string();
 
     let mut args = argv
@@ -67,9 +67,9 @@ pub fn sys_execve(
 
     let name = path
         .rsplit_once('/')
-        .map_or(path, |(_, name)| name);
+        .map_or(path.as_str(), |(_, name)| name);
     curr.set_name(name);
-    *curr_ext.process_data().exe_path.write() = path.to_string();
+    *curr_ext.process_data().exe_path.write() = path;
 
     // TODO: fd close-on-exec
 
