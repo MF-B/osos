@@ -1,4 +1,4 @@
-# /musl/busybox --install -s /bin
+/musl/busybox --install -s /bin
 /musl/busybox sh
 
 # # # glibc basic测例
@@ -37,11 +37,7 @@
 
 # # TODO
 # # glibc ltp测例
-# # /musl/busybox echo "#### cp /musl/busybox /bin/busybox ####"
-# # /musl/busybox mkdir /bin
-# # /musl/busybox cp /musl/busybox /bin/basename
-# # /musl/busybox cp /musl/busybox /musl/basename
-# # /musl/busybox sh /musl/ltp_testcode.sh
+# /bin/sh /musl/ltp_testcode.sh
 # # musl ltp测例
 # # /musl/busybox sh /musl/ltp_testcode.sh
 
