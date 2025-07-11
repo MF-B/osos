@@ -8,11 +8,10 @@ use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps, VfsResu
 use axns::{ResArc, def_resource};
 use axsync::Mutex;
 use lazyinit::LazyInit;
-use lwext4_rust::Ext4File;
 use spin::RwLock;
 
 use crate::{
-    api::{absolute_path_exists, FileType},
+    api::FileType,
     fs::{self},
     mounts,
 };
@@ -162,6 +161,26 @@ impl VfsNodeOps for RootDirectory {
                 ax_err!(PermissionDenied) // cannot rename mount points
             } else {
                 fs.root_dir().rename(rest_path, dst_path)
+            }
+        })
+    }
+
+    fn symlink(&self, target: &str, path: &str) -> VfsResult {
+        self.lookup_mounted_fs(target, |fs, rest_path| {
+            if rest_path.is_empty() {
+                ax_err!(InvalidInput)
+            } else {
+                fs.root_dir().symlink(target, path)
+            }
+        })
+    }
+
+    fn readlink(&self, path: &str, buf: &mut [u8]) -> VfsResult<usize> {
+        self.lookup_mounted_fs(path, |fs, rest_path| {
+            if rest_path.is_empty() {
+                ax_err!(NotFound) // cannot read link of mount points
+            } else {
+                fs.root_dir().readlink(path, buf)
             }
         })
     }
@@ -339,23 +358,21 @@ pub(crate) fn rename(old: &str, new: &str) -> AxResult {
     parent_node_of(None, old).rename(old, new)
 }
 
-pub(crate) fn create_symlink(old: &str, new: &str) -> AxResult {
-    if old.is_empty() || new.is_empty() {
+pub(crate) fn create_symlink(target: &str, path: &str) -> AxResult {
+    if target.is_empty() || path.is_empty() {
         return ax_err!(InvalidInput);
     }
 
-    Ext4File::create_symlink(old, new)
-        .map(|_| ())
-        .map_err(|e| e.try_into().unwrap())
+    let parent = parent_node_of(None, target);
+    parent.symlink(target, path)
 }
 
 pub(crate) fn read_link(path: &str, buf: &mut [u8]) -> AxResult<usize> {
     if path.is_empty() {
         return ax_err!(NotFound);
     }
-    Ext4File::read_link(path, buf)
-        .map(|len| len as usize)
-        .map_err(|e| e.try_into().unwrap())
+    let parent = parent_node_of(None, path);
+    parent.readlink(path, buf)
 }
 
 pub(crate) fn set_perm(path: &str, mode: u16) -> AxResult {

@@ -325,6 +325,20 @@ impl VfsNodeOps for FileWrapper {
         self as &dyn core::any::Any
     }
 
+    fn symlink(&self, target: &str, path: &str) -> VfsResult {
+        let mut file = self.0.lock();
+        file.create_symlink(target, path)
+            .map(|_v| ())
+            .map_err(|e| e.try_into().unwrap())
+    }
+
+    fn readlink(&self, path: &str, buf: &mut [u8]) -> VfsResult<usize> {
+        let mut file = self.0.lock();
+        file.readlink(path, buf)
+            .map(|len| len as usize)
+            .map_err(|e| e.try_into().unwrap())
+    }
+
     fn is_symlink(&self) -> bool {
         let file = self.0.lock();
         file.get_type() == InodeTypes::EXT4_DE_SYMLINK
