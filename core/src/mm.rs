@@ -2,7 +2,6 @@
 
 use alloc::vec;
 use alloc::{
-    borrow::ToOwned,
     string::String,
     vec::Vec,
 };
@@ -13,6 +12,7 @@ use core::ffi::CStr;
 use kernel_elf_parser::{AuxvEntry, ELFParser, app_stack_region};
 use memory_addr::{MemoryAddr, PAGE_SIZE_4K, VirtAddr};
 use xmas_elf::{ElfFile, program::SegmentData};
+use crate::alloc::string::ToString;
 
 /// Creates a new empty user address space.
 pub fn new_user_aspace_empty() -> AxResult<AddrSpace> {
@@ -102,7 +102,8 @@ fn map_elf(uspace: &mut AddrSpace, elf: &ElfFile) -> AxResult<(VirtAddr, [AuxvEn
 ///
 /// # Arguments
 /// - `uspace`: The address space of the user app.
-/// - `args`: The arguments of the user app. The first argument is the path of the user app.
+/// - `path`: The path of the executable file to load.
+/// - `args`: The arguments of the user app. The first argument should be the program name.
 /// - `envs`: The environment variables of the user app.
 ///
 /// # Returns
@@ -110,39 +111,52 @@ fn map_elf(uspace: &mut AddrSpace, elf: &ElfFile) -> AxResult<(VirtAddr, [AuxvEn
 /// - The stack pointer of the user app.
 pub fn load_user_app(
     uspace: &mut AddrSpace,
+    path: &str,
     args: &[String],
     envs: &[String],
 ) -> AxResult<(VirtAddr, VirtAddr)> {
     if args.is_empty() {
         return Err(AxError::InvalidInput);
     }
-    let file_data = axfs::api::read(args[0].as_str())?;
+    
+    let file_data = axfs::api::read(path)?;
+    
+    // Check if the file is a script (e.g., shell script).
     if file_data.starts_with(b"#!") {
-        let head = &file_data[2..file_data.len().min(256)];
-        let pos = head.iter().position(|c| *c == b'\n').unwrap_or(head.len());
-        let line = core::str::from_utf8(&head[..pos]).map_err(|_| AxError::InvalidData)?;
-
-        let mut new_args: Vec<String> = line
-            .splitn(2, |c: char| c.is_ascii_whitespace())
-            .map(|s| s.trim_ascii().to_owned())
-            .chain(args.iter().cloned())
-            .collect();
-
-        // 添加解释器路径映射
-        // if let Some(interpreter) = new_args.first() {
-        //     match interpreter.as_str() {
-        //         "/bin/sh" | "/bin/bash" => {
-        //             new_args[0] = "/bin/busybox".to_string();
-        //             new_args.insert(1, "sh".to_string());
-        //         }
-        //         _ => {}
-        //     }
-        // }
-
-        new_args.extend_from_slice(args);
-        return load_user_app(uspace, &new_args, envs);
+        return load_script(uspace, path, args, envs, &file_data);
     }
-    let elf = ElfFile::new(&file_data).map_err(|_| AxError::InvalidData)?;
+    
+    // For ELF files, use the dedicated load_elf function
+    load_elf(uspace, &file_data, args, envs)
+}
+
+/// Load an ELF file to the user address space.
+///
+/// # Arguments
+/// - `uspace`: The address space of the user app.
+/// - `elf_data`: The content of the ELF file.
+/// - `args`: The arguments of the user app. The first argument should be the program name.
+/// - `envs`: The environment variables of the user app.
+///
+/// # Returns
+/// - The entry point of the user app.
+/// - The stack pointer of the user app.
+pub fn load_elf(
+    uspace: &mut AddrSpace,
+    elf_data: &[u8],
+    args: &[String],
+    envs: &[String],
+) -> AxResult<(VirtAddr, VirtAddr)> {
+    if args.is_empty() {
+        return Err(AxError::InvalidInput);
+    }
+    
+    // Check if the data is an ELF binary.
+    if elf_data.len() < 4 || &elf_data[0..4] != b"\x7fELF" {
+        return Err(AxError::InvalidData);
+    }
+    
+    let elf = ElfFile::new(elf_data).map_err(|_| AxError::InvalidData)?;
 
     if let Some(interp) = elf
         .program_iter()
@@ -172,13 +186,17 @@ pub fn load_user_app(
             interp_path = String::from("/musl/lib/libc.so");
         }
 
-        // Set the first argument to the path of the user app.
-        let mut new_args = vec![interp_path];
+        // Set the first argument to the interpreter name, then add original args
+        let interp_name = interp_path
+            .rsplit_once('/')
+            .map_or(interp_path.as_str(), |(_, name)| name);
+        let mut new_args = vec![interp_name.to_string()];
         new_args.extend_from_slice(args);
-        return load_user_app(uspace, &new_args, envs);
+        return load_user_app(uspace, &interp_path, &new_args, envs);
     }
 
     let (entry, mut auxv) = map_elf(uspace, &elf)?;
+    
     // The user stack is divided into two parts:
     // `ustack_start` -> `ustack_pointer`: It is the stack space that users actually read and write.
     // `ustack_pointer` -> `ustack_end`: It is the space that contains the arguments, environment variables and auxv passed to the app.
@@ -219,6 +237,78 @@ pub fn load_user_app(
     )?;
 
     Ok((entry, user_sp))
+}
+
+/// Load a script file to the user address space.
+///
+/// This function handles script files that start with shebang (#!).
+/// It parses the shebang line and recursively loads the interpreter.
+///
+/// # Arguments
+/// - `uspace`: The address space of the user app.
+/// - `script_path`: The path of the script file.
+/// - `args`: The original arguments.
+/// - `envs`: The environment variables.
+/// - `file_data`: The content of the script file.
+///
+/// # Returns
+/// - The entry point of the interpreter.
+/// - The stack pointer of the user app.
+fn load_script(
+    uspace: &mut AddrSpace,
+    script_path: &str,
+    args: &[String],
+    envs: &[String],
+    file_data: &[u8],
+) -> AxResult<(VirtAddr, VirtAddr)> {
+    // Parse the shebang line (first line starting with #!)
+    let head = &file_data[2..file_data.len().min(256)];
+    let pos = head.iter().position(|c| *c == b'\n').unwrap_or(head.len());
+    let shebang_line = core::str::from_utf8(&head[..pos])
+        .map_err(|_| AxError::InvalidData)?
+        .trim();
+
+    if shebang_line.is_empty() {
+        return Err(AxError::InvalidData);
+    }
+
+    // Parse interpreter and its arguments
+    let parts: Vec<&str> = shebang_line.split_whitespace().collect();
+    if parts.is_empty() {
+        return Err(AxError::InvalidData);
+    }
+
+    let interpreter_path = parts[0];
+    
+    // Build new arguments for the interpreter
+    let mut new_args = Vec::new();
+    
+    // First argument: interpreter name (basename)
+    let interpreter_name = interpreter_path
+        .rsplit_once('/')
+        .map_or(interpreter_path, |(_, name)| name);
+    new_args.push(interpreter_name.to_string());
+    
+    // Add interpreter arguments from shebang (if any)
+    for &arg in &parts[1..] {
+        new_args.push(arg.to_string());
+    }
+    
+    // Add the script path as an argument
+    new_args.push(script_path.to_string());
+    
+    // Add remaining user arguments (skip the original script name)
+    for arg in &args[1..] {
+        new_args.push(arg.clone());
+    }
+
+    debug!(
+        "Loading script: interpreter={}, args={:?}",
+        interpreter_path, new_args
+    );
+
+    // Recursively load the interpreter
+    load_user_app(uspace, interpreter_path, &new_args, envs)
 }
 
 #[percpu::def_percpu]

@@ -262,7 +262,7 @@ dependencies = [
 [[package]]
 name = "axfs_devfs"
 version = "0.1.2"
-source = "git+https://github.com/MF-B/axfs_crates.git#93a13171052be333912548877ef91f0621551a17"
+source = "git+https://github.com/MF-B/axfs_crates.git#33866219481a9585c4bbbe48e780e91edec72ad9"
 dependencies = [
  "axfs_vfs",
  "log",
@@ -272,7 +272,7 @@ dependencies = [
 [[package]]
 name = "axfs_ramfs"
 version = "0.1.2"
-source = "git+https://github.com/MF-B/axfs_crates.git#93a13171052be333912548877ef91f0621551a17"
+source = "git+https://github.com/MF-B/axfs_crates.git#33866219481a9585c4bbbe48e780e91edec72ad9"
 dependencies = [
  "axfs_vfs",
  "log",
@@ -282,7 +282,7 @@ dependencies = [
 [[package]]
 name = "axfs_vfs"
 version = "0.1.2"
-source = "git+https://github.com/MF-B/axfs_crates.git#93a13171052be333912548877ef91f0621551a17"
+source = "git+https://github.com/MF-B/axfs_crates.git#33866219481a9585c4bbbe48e780e91edec72ad9"
 dependencies = [
  "axerrno",
  "bitflags 2.9.1",
@@ -926,7 +926,7 @@ dependencies = [
 [[package]]
 name = "lwext4_rust"
 version = "0.2.0"
-source = "git+https://github.com/MF-B/lwext4_rust.git#e4caebee07c9b72cd8fb606d3949bd4d47c410e8"
+source = "git+https://github.com/MF-B/lwext4_rust.git#a4aba0bf812133d66faafd523074352455f0ab18"
 dependencies = [
  "log",
 ]
@@ -1294,6 +1294,7 @@ dependencies = [
  "spin",
  "starry-core",
  "x86",
+ "xmas-elf",
 ]
 
 [[package]]
