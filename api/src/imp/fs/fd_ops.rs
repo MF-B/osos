@@ -7,7 +7,7 @@ use alloc::string::ToString;
 use axerrno::{AxError, LinuxError, LinuxResult};
 use axfs::fops::OpenOptions;
 use linux_raw_sys::general::{
-    __kernel_mode_t, AT_FDCWD, AT_SYMLINK_NOFOLLOW, F_DUPFD, F_DUPFD_CLOEXEC, F_SETFL, O_APPEND, O_CREAT, O_DIRECTORY,
+    __kernel_mode_t, AT_FDCWD, AT_SYMLINK_NOFOLLOW, F_DUPFD, F_DUPFD_CLOEXEC, F_GETFL, F_SETFL, O_APPEND, O_CREAT, O_DIRECTORY,
     O_NONBLOCK, O_PATH, O_RDONLY, O_TRUNC, O_WRONLY,
 };
 
@@ -155,6 +155,22 @@ pub fn sys_fcntl(fd: c_int, cmd: c_int, arg: usize) -> LinuxResult<isize> {
         F_DUPFD_CLOEXEC => {
             warn!("sys_fcntl: treat F_DUPFD_CLOEXEC as F_DUPFD");
             dup_fd(fd)
+        }
+        F_GETFL => {
+            // 获取文件状态标志
+            // 对于简单实现，返回基本的读写标志
+            if fd == 0 || fd == 1 || fd == 2 {
+                // 标准输入/输出/错误流
+                match fd {
+                    0 => Ok(O_RDONLY as isize), // 标准输入只读
+                    1 | 2 => Ok(O_WRONLY as isize), // 标准输出/错误只写
+                    _ => unreachable!(),
+                }
+            } else {
+                // 对于普通文件，返回读写标志
+                // 这里可以根据实际的文件打开模式返回更精确的标志
+                Ok((O_RDONLY | O_WRONLY) as isize) // 简化为读写
+            }
         }
         F_SETFL => {
             if fd == 0 || fd == 1 || fd == 2 {
