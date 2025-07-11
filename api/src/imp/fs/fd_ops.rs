@@ -7,7 +7,7 @@ use alloc::string::ToString;
 use axerrno::{AxError, LinuxError, LinuxResult};
 use axfs::fops::OpenOptions;
 use linux_raw_sys::general::{
-    __kernel_mode_t, AT_FDCWD, F_DUPFD, F_DUPFD_CLOEXEC, F_SETFL, O_APPEND, O_CREAT, O_DIRECTORY,
+    __kernel_mode_t, AT_FDCWD, AT_SYMLINK_NOFOLLOW, F_DUPFD, F_DUPFD_CLOEXEC, F_SETFL, O_APPEND, O_CREAT, O_DIRECTORY,
     O_NONBLOCK, O_PATH, O_RDONLY, O_TRUNC, O_WRONLY,
 };
 
@@ -168,4 +168,27 @@ pub fn sys_fcntl(fd: c_int, cmd: c_int, arg: usize) -> LinuxResult<isize> {
             Ok(0)
         }
     }
+}
+
+pub fn sys_fchmodat(
+    dirfd: c_int,
+    path: UserConstPtr<c_char>,
+    mode: __kernel_mode_t,
+    flags: c_int,
+) -> LinuxResult<isize> {
+    let path = path.get_as_str()?;
+    debug!("sys_fchmodat <= dirfd: {} path: {} mode: {:o} flags: {}", dirfd, path, mode, flags);
+    
+    // 检查flags参数 - 目前只支持 AT_SYMLINK_NOFOLLOW
+    if flags & !AT_SYMLINK_NOFOLLOW as c_int != 0 {
+        return Err(LinuxError::EINVAL);
+    }
+    
+    // 处理路径
+    let binding = handle_symlink_path(dirfd, path)?;
+    let resolved_path = binding.as_str();
+
+    let _ = axfs::api::set_permissions(resolved_path, mode as u16);
+    
+    Ok(0)
 }

@@ -12,10 +12,11 @@ use lwext4_rust::Ext4File;
 use spin::RwLock;
 
 use crate::{
-    api::FileType,
+    api::{absolute_path_exists, FileType},
     fs::{self},
     mounts,
 };
+use axfs_vfs::VfsNodePerm;
 
 def_resource! {
     pub static CURRENT_DIR_PATH: ResArc<Mutex<String>> = ResArc::new();
@@ -355,4 +356,16 @@ pub(crate) fn read_link(path: &str, buf: &mut [u8]) -> AxResult<usize> {
     Ext4File::read_link(path, buf)
         .map(|len| len as usize)
         .map_err(|e| e.try_into().unwrap())
+}
+
+pub(crate) fn set_perm(path: &str, mode: u16) -> AxResult {
+    let mut abs_path = absolute_path(path)?;
+    if !abs_path.ends_with('/') {
+        abs_path += "/";
+    }
+
+    let node = lookup(None, &abs_path)?;
+    let mut attr = node.get_attr()?;
+    attr.set_perm(VfsNodePerm::from_bits(mode).ok_or(AxError::InvalidInput)?);
+    Ok(())
 }

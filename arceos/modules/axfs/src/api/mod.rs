@@ -100,3 +100,7 @@ pub fn create_symlink(old: &str, new: &str) -> io::Result<()> {
 pub fn read_link(path: &str, buf: &mut [u8]) -> io::Result<usize> {
     crate::root::read_link(path, buf)
 }
+
+pub fn set_permissions(path: &str, mode: u16) -> io::Result<()> {
+    crate::root::set_perm(path, mode)
+}

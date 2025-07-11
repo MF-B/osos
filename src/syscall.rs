@@ -270,6 +270,13 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         ),
         Sysno::set_robust_list => sys_set_robust_list(tf.arg0().into(), tf.arg1() as _),
 
+        Sysno::fchmodat => sys_fchmodat(
+            tf.arg0() as _,
+            tf.arg1().into(),
+            tf.arg2() as _,
+            tf.arg3() as _,
+        ),
+
         _ => {
             error!("Unimplemented syscall: {}", sysno);
             Err(LinuxError::ENOSYS)
