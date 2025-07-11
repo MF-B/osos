@@ -7,8 +7,7 @@ use alloc::string::ToString;
 use axerrno::{AxError, LinuxError, LinuxResult};
 use axfs::fops::OpenOptions;
 use linux_raw_sys::general::{
-    __kernel_mode_t, AT_FDCWD, AT_SYMLINK_NOFOLLOW, F_DUPFD, F_DUPFD_CLOEXEC, F_GETFL, F_SETFL, O_APPEND, O_CREAT, O_DIRECTORY,
-    O_NONBLOCK, O_PATH, O_RDONLY, O_TRUNC, O_WRONLY,
+    __kernel_mode_t, AT_FDCWD, AT_SYMLINK_NOFOLLOW, F_DUPFD, F_DUPFD_CLOEXEC, F_GETFL, F_SETFL, O_APPEND, O_CREAT, O_DIRECTORY, O_NONBLOCK, O_PATH, O_RDONLY, O_TRUNC, O_WRONLY
 };
 
 use crate::{
@@ -194,17 +193,52 @@ pub fn sys_fchmodat(
 ) -> LinuxResult<isize> {
     let path = path.get_as_str()?;
     debug!("sys_fchmodat <= dirfd: {} path: {} mode: {:o} flags: {}", dirfd, path, mode, flags);
-    
-    // 检查flags参数 - 目前只支持 AT_SYMLINK_NOFOLLOW
-    if flags & !AT_SYMLINK_NOFOLLOW as c_int != 0 {
-        return Err(LinuxError::EINVAL);
-    }
-    
-    // 处理路径
-    let binding = handle_symlink_path(dirfd, path)?;
-    let resolved_path = binding.as_str();
 
-    let _ = axfs::api::set_permissions(resolved_path, mode as u16);
+    let resolved_path = if flags & AT_SYMLINK_NOFOLLOW as i32 != 0 {
+        // AT_SYMLINK_NOFOLLOW: 不跟随符号链接，直接操作符号链接本身
+        handle_file_path(dirfd, path)?.to_string()
+    } else {
+        // 默认行为：跟随符号链接
+        handle_symlink_path(dirfd, path)?
+    };
+
+    let _ = axfs::api::set_permissions(&resolved_path, mode as u16);
     
+    Ok(0)
+}
+
+pub fn sys_renameat2(
+    old_dirfd: c_int,
+    old_path: UserConstPtr<c_char>,
+    new_dirfd: c_int,
+    new_path: UserConstPtr<c_char>,
+    flags: c_int,
+) -> LinuxResult<isize> {
+    let old_path = old_path.get_as_str()?;
+    let new_path = new_path.get_as_str()?;
+    
+    debug!(
+        "sys_renameat2 <= old_dirfd: {}, old_path: {}, new_dirfd: {}, new_path: {}, flags: {}",
+        old_dirfd, old_path, new_dirfd, new_path, flags
+    );
+
+    let old_binding = handle_symlink_path(old_dirfd, old_path)?;
+    let new_binding = handle_symlink_path(new_dirfd, new_path)?;
+
+    let flags = flags as u32;
+
+    match flags {
+        0 => {
+            // 默认重命名操作
+            axfs::api::rename(old_binding.as_str(), new_binding.as_str())
+                .map_err(|_| LinuxError::EXDEV)?;
+        }
+        // TODO: Implement these flags if needed
+        // RENAME_EXCHANGE => {},
+        // RENAME_NOREPLACE => {},
+        // RENAME_WHITEOUT => {},
+        _ => return Err(LinuxError::EINVAL),
+    }
+
     Ok(0)
 }
