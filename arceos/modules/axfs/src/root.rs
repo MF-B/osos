@@ -386,3 +386,13 @@ pub(crate) fn set_perm(path: &str, mode: u16) -> AxResult {
     attr.set_perm(VfsNodePerm::from_bits(mode).ok_or(AxError::InvalidInput)?);
     Ok(())
 }
+
+pub(crate) fn is_symlink(path: &str) -> AxResult<bool> {
+    debug!("Checking if path is a symlink: {}", path);
+    if path.is_empty() {
+        return ax_err!(NotFound);
+    }
+    let node = lookup(None, path)?;
+    debug!("Node found for symlink check");
+    Ok(node.is_symlink())
+}

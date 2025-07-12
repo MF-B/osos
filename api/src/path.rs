@@ -290,8 +290,44 @@ impl HardlinkManager {
     }
 }
 
+/// 路径处理标志
+#[derive(Debug, Clone, Copy)]
+pub struct PathFlags {
+    /// 是否跟随符号链接
+    pub follow_symlinks: bool,
+}
+
+impl PathFlags {
+    /// 默认标志：跟随符号链接
+    pub const fn new() -> Self {
+        Self {
+            follow_symlinks: true,
+        }
+    }
+
+    /// 不跟随符号链接的标志
+    pub const fn no_follow() -> Self {
+        Self {
+            follow_symlinks: false,
+        }
+    }
+
+    /// 从AT_SYMLINK_NOFOLLOW标志创建
+    pub const fn from_at_flags(flags: u32) -> Self {
+        Self {
+            follow_symlinks: (flags & linux_raw_sys::general::AT_SYMLINK_NOFOLLOW) == 0,
+        }
+    }
+}
+
+impl Default for PathFlags {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// 将绝对/相对路径解析成绝对路径
-pub fn handle_file_path(dirfd: c_int, path: &str) -> LinuxResult<FilePath> {
+pub fn resolve_path(dirfd: c_int, path: &str) -> LinuxResult<FilePath> {
     if path.starts_with('/') {
         Ok(FilePath::new(path)?)
     } else if path.is_empty() {
@@ -306,33 +342,53 @@ pub fn handle_file_path(dirfd: c_int, path: &str) -> LinuxResult<FilePath> {
     }
 }
 
-/// 将绝对/相对路径解析成绝对路径，并处理符号链接
-pub fn handle_symlink_path(dirfd: c_int, path: &str) -> LinuxResult<String> {
-    // 转换相对路径 为 绝对路径
-    let mut absolute_path = handle_file_path(dirfd, path)?;
+/// 将绝对/相对路径解析成绝对路径，根据标志处理符号链接
+pub fn resolve_path_with_flags(dirfd: c_int, path: &str, flags: PathFlags) -> LinuxResult<FilePath> {
+    let mut absolute_path = resolve_path(dirfd, path)?;
 
-    // 处理符号链接
-    let buf: &mut [u8] = &mut [0; 4096];
-    let mut depth = 0;
-    const MAX_SYMLINK_DEPTH: usize = 8; // 限制符号链接解析深度
-    
-    loop {
-        if depth >= MAX_SYMLINK_DEPTH {
-            return Err(LinuxError::ELOOP.into());
-        }
+    if flags.follow_symlinks && axfs::api::is_symlink(absolute_path.as_str())? {
+        // 处理符号链接
+        let buf: &mut [u8] = &mut [0; 4096];
+        let mut depth = 0;
+        const MAX_SYMLINK_DEPTH: usize = 8; // 限制符号链接解析深度
         
-        match axfs::api::read_link(absolute_path.as_str(), buf) {
-            Ok(len) if len > 0 => {
-                let link_target = core::str::from_utf8(&buf[..len])
-                    .map_err(|_| AxError::InvalidInput)?;
-
-                absolute_path = handle_file_path(dirfd, link_target)?;
-                depth += 1;
+        loop {
+            if depth >= MAX_SYMLINK_DEPTH {
+                return Err(LinuxError::ELOOP.into());
             }
-            _ => {
-                // 不是符号链接或读取出错，返回当前路径
-                return Ok(absolute_path.to_string());
+            
+            match axfs::api::read_link(absolute_path.as_str(), buf) {
+                Ok(len) if len > 0 => {
+                    let link_target = core::str::from_utf8(&buf[..len])
+                        .map_err(|_| AxError::InvalidInput)?;
+
+                    absolute_path = resolve_path(dirfd, link_target)?;
+                    depth += 1;
+
+                    // 检查新路径是否还是符号链接
+                    if !axfs::api::is_symlink(absolute_path.as_str())? {
+                        break;
+                    }
+                }
+                _ => {
+                    // 不是符号链接或读取出错，返回当前路径
+                    break;
+                }
             }
         }
     }
+
+    Ok(absolute_path)
+}
+
+// 向后兼容的便利函数
+/// 将绝对/相对路径解析成绝对路径（不跟随符号链接）
+pub fn handle_file_path(dirfd: c_int, path: &str) -> LinuxResult<FilePath> {
+    resolve_path(dirfd, path)
+}
+
+/// 将绝对/相对路径解析成绝对路径，并跟随符号链接
+pub fn handle_symlink_path(dirfd: c_int, path: &str) -> LinuxResult<String> {
+    resolve_path_with_flags(dirfd, path, PathFlags::new())
+        .map(|path| path.to_string())
 }
