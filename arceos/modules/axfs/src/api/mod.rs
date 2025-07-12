@@ -104,3 +104,7 @@ pub fn read_link(path: &str, buf: &mut [u8]) -> io::Result<usize> {
 pub fn set_permissions(path: &str, mode: u16) -> io::Result<()> {
     crate::root::set_perm(path, mode)
 }
+
+pub fn is_symlink(path: &str) -> io::Result<bool> {
+    crate::root::is_symlink(path)
+}

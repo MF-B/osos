@@ -266,6 +266,9 @@ impl VfsNodeOps for FileWrapper {
         } else if file.check_inode_exist(fpath, InodeTypes::EXT4_DE_REG_FILE) {
             trace!("lookup new FILE FileWrapper");
             Ok(Arc::new(Self::new(fpath, InodeTypes::EXT4_DE_REG_FILE)))
+        } else if file.check_inode_exist(fpath, InodeTypes::EXT4_DE_SYMLINK) {
+            trace!("lookup new SYMLINK FileWrapper");
+            Ok(Arc::new(Self::new(fpath, InodeTypes::EXT4_DE_SYMLINK)))
         } else {
             Err(VfsError::NotFound)
         }
