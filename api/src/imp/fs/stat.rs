@@ -6,10 +6,9 @@ use linux_raw_sys::general::{AT_EMPTY_PATH, stat, statx};
 
 use crate::{
     file::{Directory, File, FileLike, Kstat, get_file_like},
-    path::handle_file_path,
+    path::{resolve_path_with_flags, PathFlags},
     ptr::{UserConstPtr, UserPtr, nullable},
 };
-use crate::path::handle_symlink_path;
 
 fn stat_at_path(path: &str) -> LinuxResult<Kstat> {
     let opts = OpenOptions::new().set_read(true);
@@ -71,10 +70,8 @@ pub fn sys_fstatat(
         let f = get_file_like(dirfd)?;
         f.stat()?.into()
     } else {
-        let binding = handle_symlink_path(dirfd, path.unwrap_or_default())?;
-        let path = binding.as_str();
-        let path = handle_file_path(dirfd, path)?;
-        stat_at_path(path.as_str())?.into()
+        let resolved_path = resolve_path_with_flags(dirfd, path.unwrap_or_default(), PathFlags::from_at_flags(flags))?;
+        stat_at_path(resolved_path.as_str())?.into()
     };
 
     Ok(0)
@@ -127,8 +124,8 @@ pub fn sys_statx(
         let f = get_file_like(dirfd)?;
         f.stat()?.into()
     } else {
-        let path = handle_file_path(dirfd, path.unwrap_or_default())?;
-        stat_at_path(path.as_str())?.into()
+        let resolved_path = resolve_path_with_flags(dirfd, path.unwrap_or_default(), PathFlags::from_at_flags(flags))?;
+        stat_at_path(resolved_path.as_str())?.into()
     };
 
     Ok(0)

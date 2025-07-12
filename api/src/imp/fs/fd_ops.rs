@@ -7,12 +7,12 @@ use alloc::string::ToString;
 use axerrno::{AxError, LinuxError, LinuxResult};
 use axfs::fops::OpenOptions;
 use linux_raw_sys::general::{
-    __kernel_mode_t, AT_FDCWD, AT_SYMLINK_NOFOLLOW, F_DUPFD, F_DUPFD_CLOEXEC, F_GETFL, F_SETFL, O_APPEND, O_CREAT, O_DIRECTORY, O_NONBLOCK, O_PATH, O_RDONLY, O_TRUNC, O_WRONLY
+    __kernel_mode_t, AT_FDCWD, F_DUPFD, F_DUPFD_CLOEXEC, F_GETFL, F_SETFL, O_APPEND, O_CREAT, O_DIRECTORY, O_NONBLOCK, O_PATH, O_RDONLY, O_TRUNC, O_WRONLY
 };
 
 use crate::{
     file::{Directory, FD_TABLE, File, FileLike, add_file_like, close_file_like, get_file_like},
-    path::{handle_file_path, handle_symlink_path},
+    path::{resolve_path_with_flags, PathFlags},
     ptr::UserConstPtr,
 };
 
@@ -65,20 +65,17 @@ pub fn sys_openat(
     let opts = flags_to_options(flags, mode);
     debug!("sys_openat <= {} {} {:?}", dirfd, path, opts);
 
-    let binding = handle_symlink_path(dirfd, path)?;
-    let path = binding.as_str();
-
     let dir = if path.starts_with('/') || dirfd == AT_FDCWD {
         None
     } else {
         Some(Directory::from_fd(dirfd)?)
     };
-    let real_path = handle_file_path(dirfd, path)?;
+    let real_path = resolve_path_with_flags(dirfd, path, PathFlags::new())?;
 
     if !opts.has_directory() {
         match dir.as_ref().map_or_else(
-            || axfs::fops::File::open(path, &opts),
-            |dir| dir.get_inner().open_file_at(path, &opts),
+            || axfs::fops::File::open(real_path.as_str(), &opts),
+            |dir| dir.get_inner().open_file_at(real_path.as_str(), &opts),
         ) {
             Err(AxError::IsADirectory) => {}
             r => {
@@ -90,8 +87,8 @@ pub fn sys_openat(
 
     let fd = Directory::new(
         dir.map_or_else(
-            || axfs::fops::Directory::open_dir(path, &opts),
-            |dir| dir.get_inner().open_dir_at(path, &opts),
+            || axfs::fops::Directory::open_dir(real_path.as_str(), &opts),
+            |dir| dir.get_inner().open_dir_at(real_path.as_str(), &opts),
         )?,
         real_path.to_string(),
     )
@@ -194,15 +191,9 @@ pub fn sys_fchmodat(
     let path = path.get_as_str()?;
     debug!("sys_fchmodat <= dirfd: {} path: {} mode: {:o} flags: {}", dirfd, path, mode, flags);
 
-    let resolved_path = if flags & AT_SYMLINK_NOFOLLOW as i32 != 0 {
-        // AT_SYMLINK_NOFOLLOW: 不跟随符号链接，直接操作符号链接本身
-        handle_file_path(dirfd, path)?.to_string()
-    } else {
-        // 默认行为：跟随符号链接
-        handle_symlink_path(dirfd, path)?
-    };
+    let resolved_path = resolve_path_with_flags(dirfd, path, PathFlags::from_at_flags(flags as u32))?;
 
-    let _ = axfs::api::set_permissions(&resolved_path, mode as u16);
+    let _ = axfs::api::set_permissions(resolved_path.as_str(), mode as u16);
     
     Ok(0)
 }
@@ -222,8 +213,8 @@ pub fn sys_renameat2(
         old_dirfd, old_path, new_dirfd, new_path, flags
     );
 
-    let old_binding = handle_symlink_path(old_dirfd, old_path)?;
-    let new_binding = handle_symlink_path(new_dirfd, new_path)?;
+    let old_binding = resolve_path_with_flags(old_dirfd, old_path, PathFlags::new())?;
+    let new_binding = resolve_path_with_flags(new_dirfd, new_path, PathFlags::new())?;
 
     let flags = flags as u32;
 
