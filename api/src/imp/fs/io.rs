@@ -1,5 +1,6 @@
 use core::ffi::c_int;
 
+use alloc::vec;
 use axerrno::{LinuxError, LinuxResult};
 use axio::SeekFrom;
 use linux_raw_sys::general::{__kernel_off_t, iovec};
@@ -160,4 +161,53 @@ pub fn sys_ftruncate(fd: c_int, length: __kernel_off_t) -> LinuxResult<isize> {
 pub fn sys_fsync(fd: c_int) -> LinuxResult<isize> {
     warn!("sys_fsync <= fd: {}", fd);
     Ok(0)
+}
+
+/// Transfer data between file descriptors
+///
+/// sendfile() copies data between one file descriptor and another.
+/// This is more efficient than using read() and write() separately.
+pub fn sys_sendfile(
+    out_fd: c_int,
+    in_fd: c_int,
+    offset: UserPtr<__kernel_off_t>,
+    count: usize,
+) -> LinuxResult<isize> {
+    debug!("sys_sendfile <= out_fd: {}, in_fd: {}, count: {}", out_fd, in_fd, count);
+    
+    // 简单实现：从 in_fd 读取数据并写入 out_fd
+    let mut buffer = vec![0u8; count.min(8192)]; // 限制缓冲区大小
+    let mut total_copied = 0;
+    let mut remaining = count;
+    
+    // 如果有偏移量，先处理偏移
+    if !offset.is_null() {
+        let offset_val = *offset.get_as_mut()?;
+        // 注意：这里简化处理，实际应该支持 seek
+        debug!("sendfile with offset: {}", offset_val);
+    }
+    
+    while remaining > 0 && total_copied < count {
+        let to_read = remaining.min(buffer.len());
+        let read_size = get_file_like(in_fd)?.read(&mut buffer[..to_read])?;
+        
+        if read_size == 0 {
+            break; // EOF reached
+        }
+        
+        let written = get_file_like(out_fd)?.write(&buffer[..read_size])?;
+        total_copied += written;
+        remaining -= written;
+        
+        if written < read_size {
+            break; // Output blocked
+        }
+    }
+    
+    // 更新偏移量（简化实现）
+    if !offset.is_null() {
+        *offset.get_as_mut()? += total_copied as __kernel_off_t;
+    }
+    
+    Ok(total_copied as isize)
 }

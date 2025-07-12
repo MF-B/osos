@@ -217,6 +217,9 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
         Sysno::geteuid => sys_geteuid(),
         Sysno::getgid => sys_getgid(),
         Sysno::getegid => sys_getegid(),
+        Sysno::setresuid => sys_setresuid(tf.arg0() as _, tf.arg1() as _, tf.arg2() as _),
+        Sysno::setresgid => sys_setresgid(tf.arg0() as _, tf.arg1() as _, tf.arg2() as _),
+        Sysno::socket => sys_socket(tf.arg0() as _, tf.arg1() as _, tf.arg2() as _),
         Sysno::uname => sys_uname(tf.arg0().into()),
 
         // time
@@ -281,6 +284,22 @@ fn handle_syscall(tf: &mut TrapFrame, syscall_num: usize) -> isize {
             tf.arg0() as _,
             tf.arg1().into(),
             tf.arg2() as _,
+            tf.arg3() as _,
+        ),
+
+        Sysno::utimensat => sys_utimensat(
+            tf.arg0() as _,
+            tf.arg1().into(),
+            tf.arg2().into(),
+            tf.arg3() as _,
+        ),
+
+        Sysno::sysinfo => sys_sysinfo(tf.arg0().into()),
+
+        Sysno::sendfile => sys_sendfile(
+            tf.arg0() as _,
+            tf.arg1() as _,
+            tf.arg2().into(),
             tf.arg3() as _,
         ),
 
