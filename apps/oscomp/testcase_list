@@ -1,5 +1,4 @@
 /musl/busybox --install -s /bin
-/musl/busybox sh
 
 # # # glibc basic测例
 # /musl/busybox /glibc/basic_testcode.sh
